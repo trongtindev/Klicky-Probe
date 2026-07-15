@@ -26,12 +26,12 @@ fi
 ln -s "${SRCDIR}/klicky_probe" "${TARGET}"
 echo "Installed: ${TARGET} -> ${SRCDIR}/klicky_probe"
 
-# Restart Klipper if systemd unit exists
-if command -v systemctl >/dev/null 2>&1; then
-  if systemctl is-active --quiet klipper 2>/dev/null; then
-    echo "Restarting klipper..."
-    sudo systemctl restart klipper || systemctl restart klipper || true
-  fi
+# Restart Klipper only if the service is active
+if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet klipper 2>/dev/null; then
+  echo "Restarting klipper..."
+  sudo systemctl restart klipper || systemctl restart klipper || true
+else
+  echo "Klipper service not active; skipping restart."
 fi
 
 echo "Done. Add [klicky_probe] to printer.cfg (see config/sample-klicky.cfg)."
