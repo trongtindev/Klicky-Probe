@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Callable
+
 from .adaptive_mesh import merge_mesh_params
 from .dock_policy import DockIntent, parse_dock_intent, strip_klicky_params
 from .gcode_cmd import create_stock_gcmd
@@ -21,6 +23,32 @@ class CommandWrappers:
 
     def dock_intent_from_gcmd(self, gcmd) -> DockIntent:
         return parse_dock_intent(gcmd.get_command_parameters())
+
+    def _run_probe_work(
+        self,
+        intent: DockIntent,
+        pre_hook: str,
+        post_hook: str,
+        body: Callable[[], None],
+        *,
+        restore: bool = False,
+    ) -> None:
+        """
+        Shared wrap lifecycle: enter → pre → body → exit → post.
+
+        Pre runs after attach so user hooks see the probe already mounted.
+        Post always runs (nested finally) even if exit_probe_work raises.
+        """
+        h = self._h
+        h.lifecycle.enter_probe_work(intent, restore=restore)
+        h._run_gcode_template(pre_hook, soft=True)
+        try:
+            body()
+        finally:
+            try:
+                h.lifecycle.exit_probe_work(intent, restore=restore)
+            finally:
+                h._run_gcode_template(post_hook, soft=True)
 
     def install_probe_session_hooks(self) -> None:
         """
@@ -85,12 +113,12 @@ class CommandWrappers:
             def make_handler(original):
                 def handler(gcmd):
                     intent = self.dock_intent_from_gcmd(gcmd)
-                    h.lifecycle.enter_probe_work(intent)
-                    h._status_led("LEVELING")
-                    try:
-                        original(gcmd)
-                    finally:
-                        h.lifecycle.exit_probe_work(intent)
+                    self._run_probe_work(
+                        intent,
+                        "pre_leveling_gcode",
+                        "post_leveling_gcode",
+                        lambda: original(gcmd),
+                    )
 
                 return handler
 
@@ -102,6 +130,9 @@ class CommandWrappers:
         """
         Z_TILT_ADJUST: attach, run stock tilt, rehome Z while attached, then end.
         Dedicated path so leveling factory stays free of name-based branches.
+
+        Internal Z rehome uses HomingExecutor, so pre/post_homing_gcode also fire
+        nested under leveling hooks.
         """
         h = self._h
         prev = h.gcode.register_command("Z_TILT_ADJUST", None)
@@ -111,34 +142,40 @@ class CommandWrappers:
 
         def handler(gcmd):
             intent = self.dock_intent_from_gcmd(gcmd)
-            h.lifecycle.enter_probe_work(intent)
             z_hold = not (
                 intent.lock or intent.leave_attached or intent.force_dock
             )
-            if z_hold:
-                h._session.begin_hold()
-            h._status_led("LEVELING")
-            try:
-                prev(gcmd)
-                leave = HomingRequest(
-                    home_x=False,
-                    home_y=False,
-                    home_z=True,
-                    leave_probe_attached=True,
-                    lock_probe=bool(intent.lock),
-                )
-                was_locked = h.state.locked
-                if not was_locked:
-                    h.state.lock()
-                try:
-                    h.homing.execute(leave)
-                finally:
-                    if not intent.lock and not was_locked:
-                        h.state.unlock()
-            finally:
+
+            def body():
                 if z_hold:
-                    h._session.end_hold()
-                h.lifecycle.exit_probe_work(intent)
+                    h._session.begin_hold()
+                try:
+                    prev(gcmd)
+                    leave = HomingRequest(
+                        home_x=False,
+                        home_y=False,
+                        home_z=True,
+                        leave_probe_attached=True,
+                        lock_probe=bool(intent.lock),
+                    )
+                    was_locked = h.state.locked
+                    if not was_locked:
+                        h.state.lock()
+                    try:
+                        h.homing.execute(leave)
+                    finally:
+                        if not intent.lock and not was_locked:
+                            h.state.unlock()
+                finally:
+                    if z_hold:
+                        h._session.end_hold()
+
+            self._run_probe_work(
+                intent,
+                "pre_leveling_gcode",
+                "post_leveling_gcode",
+                body,
+            )
 
         h.gcode.register_command("Z_TILT_ADJUST", handler)
 
@@ -154,14 +191,18 @@ class CommandWrappers:
             intent = self.dock_intent_from_gcmd(gcmd)
             stock_params = strip_klicky_params(dict(gcmd.get_command_parameters()))
             merged = merge_mesh_params(stock_params, s.adaptive_mesh)
-            h._status_led("MESHING")
-            h.lifecycle.enter_probe_work(intent)
-            try:
+
+            def body():
                 # create_stock_gcmd: extended prev() reparses commandline only.
                 fo = create_stock_gcmd(h.gcode, "BED_MESH_CALIBRATE", merged)
                 prev(fo)
-            finally:
-                h.lifecycle.exit_probe_work(intent)
+
+            self._run_probe_work(
+                intent,
+                "pre_meshing_gcode",
+                "post_meshing_gcode",
+                body,
+            )
 
         h.gcode.register_command("BED_MESH_CALIBRATE", handler)
 
@@ -212,8 +253,8 @@ class CommandWrappers:
                 h._check_over_bed(xy=(tx, ty))
             else:
                 h._check_over_bed()
-            h.lifecycle.enter_probe_work(intent, restore=True)
-            try:
+
+            def body():
                 if do_move:
                     h.dock.ensure_clearance()
                     h._log(msg.log_probe_accuracy_stage(tx, ty))
@@ -222,7 +263,13 @@ class CommandWrappers:
                 stock_params = strip_klicky_params(params, PROBE_STAGING_PARAMS)
                 fo = create_stock_gcmd(h.gcode, "PROBE_ACCURACY", stock_params)
                 prev(fo)
-            finally:
-                h.lifecycle.exit_probe_work(intent, restore=True)
+
+            self._run_probe_work(
+                intent,
+                "pre_probe_accuracy_gcode",
+                "post_probe_accuracy_gcode",
+                body,
+                restore=True,
+            )
 
         h.gcode.register_command("PROBE_ACCURACY", handler)

@@ -625,6 +625,11 @@ def geometry_mode_invalid(mode=None):
     return "klicky: geometry mode %r must be 'attach' or 'detach'" % (mode,)
 
 
+def hook_failed(name, exc):
+    """Soft-fail report for optional user gcode hooks (name + exception text)."""
+    return "klicky: hook %s failed: %s" % (name, exc)
+
+
 # ---------------------------------------------------------------------------
 # Runtime info / status (gcmd.respond_info — not hard errors)
 # ---------------------------------------------------------------------------

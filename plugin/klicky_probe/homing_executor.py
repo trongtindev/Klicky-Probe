@@ -35,14 +35,14 @@ class HomingExecutor:
             h.state.unlock()
             h._session.reset_holds()
 
-        h._status_led("HOMING")
-        if not homed and s.z_hop_when_unhomed:
-            h.dock.z_hop_unhomed(s.clearance_z)
-
-        for axis in plan.xy_order:
-            self.home_axis(axis)
-
+        h._run_gcode_template("pre_homing_gcode", soft=True)
         try:
+            if not homed and s.z_hop_when_unhomed:
+                h.dock.z_hop_unhomed(s.clearance_z)
+
+            for axis in plan.xy_order:
+                self.home_axis(axis)
+
             if plan.home_z:
                 if plan.detach_before_z:
                     h.lifecycle.detach_probe()
@@ -67,11 +67,11 @@ class HomingExecutor:
                         h._session.end_hold()
                 if plan.detach_after_z:
                     h.lifecycle.detach_probe()
+
+            h.dock.park()
         finally:
             h.lifecycle.clear_require_fresh_oneshot()
-
-        h.dock.park()
-        h._status_led("READY")
+            h._run_gcode_template("post_homing_gcode", soft=True)
 
     def home_axis(self, axis: str) -> None:
         h = self._h
@@ -85,7 +85,7 @@ class HomingExecutor:
 
         key = "home_%s_gcode" % axis
         if key in h._gcode_templates:
-            h._run_template(key)
+            h._run_gcode_template(key, soft=False)
         else:
             self.call_orig_g28(axis.upper())
 

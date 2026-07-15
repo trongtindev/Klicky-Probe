@@ -43,16 +43,8 @@ class ProbeLifecycle:
         self._require_fresh_oneshot = False
         return True
 
-    def attach_probe(
-        self, restore=False, require_fresh=False, *, status_led=True
-    ) -> None:
-        """
-        Attach probe from dock (or reseat when require_fresh).
-
-        ``status_led``: when True (default), set BUSY during motion and READY
-        after success. Outer flows that own LED (e.g. PROBE_CALIBRATE) pass
-        False so attach does not clear their state mid-sequence.
-        """
+    def attach_probe(self, restore=False, require_fresh=False) -> None:
+        """Attach probe from dock (or reseat when require_fresh)."""
         h = self._h
         s = h.settings
         triggered = h._query_probe_triggered()
@@ -93,8 +85,6 @@ class ProbeLifecycle:
 
         th = h._toolhead
         start = th.get_position()[:]
-        if status_led:
-            h._status_led("BUSY")
         try:
             h.dock.dock_with_retries(
                 "attach",
@@ -106,16 +96,12 @@ class ProbeLifecycle:
                 h.state.lock()
 
         h._log(msg.log_probe_attached())
-        if status_led:
-            h._status_led("READY")
         if restore:
             th.manual_move(
                 [start[0], start[1], max(start[2], s.clearance_z)], s.travel_speed
             )
 
-    def detach_probe(
-        self, restore=False, force=False, *, status_led=True
-    ) -> None:
+    def detach_probe(self, restore=False, force=False) -> None:
         """
         Dock the probe (detach from toolhead).
 
@@ -123,10 +109,6 @@ class ProbeLifecycle:
         Clears ``PROBE_LOCK`` first so plan cannot ``SKIP_LOCKED``. Unlock
         happens even when the probe is already docked (lock must not survive
         a forced dock request).
-
-        ``status_led``: when True (default), set BUSY during motion and READY
-        after success. Outer flows that own LED pass False so detach does not
-        flip READY while the op is still in progress (paper test, etc.).
         """
         h = self._h
         s = h.settings
@@ -155,16 +137,12 @@ class ProbeLifecycle:
 
         th = h._toolhead
         start = th.get_position()[:]
-        if status_led:
-            h._status_led("BUSY")
         h.dock.dock_with_retries(
             "detach",
             h.state.verify_after_detach,
             h._query_probe_triggered,
         )
         h._log(msg.log_probe_docked())
-        if status_led:
-            h._status_led("READY")
         if restore:
             th.manual_move(
                 [start[0], start[1], max(start[2], s.clearance_z)], s.travel_speed

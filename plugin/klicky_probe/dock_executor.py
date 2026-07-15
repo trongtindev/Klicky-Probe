@@ -208,11 +208,11 @@ class DockExecutor:
                 self.move_wp(body[0])
                 body = body[1:]
         self.servo(s.servo_deploy_angle)
-        self._h._run_template(pre_name)
+        self._h._run_gcode_template(pre_name, soft=True)
         for wp in body:
             self.move_wp(wp)
         self.servo(s.servo_retract_angle)
-        self._h._run_template(post_name)
+        self._h._run_gcode_template(post_name, soft=True)
 
     def run_dock_motion(self, mode: str) -> None:
         """Full attach or detach sequence: clearance, umbilical, travel, body."""

@@ -17,6 +17,7 @@ def test_public_callables_return_nonempty_strings():
         "log_probe_calibrate_stage": (175.0, 150.0),
         "verify_failed": ("attach_failed",),
         "geometry_mode_invalid": ("travel",),
+        "hook_failed": ("pre_homing_gcode", RuntimeError("boom")),
         "probe_operation_failed_code": ("attach_failed",),
         "probe_status_report": ("attached", False, 0, 0),
         "log_loading": ("1.0.0",),

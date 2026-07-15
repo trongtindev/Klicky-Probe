@@ -118,7 +118,7 @@ def _host(*, disable_docking=False, locked=False, calibrate_move=True):
         printer=printer,
         _check_over_bed=MagicMock(),
         _log=MagicMock(),
-        _status_led=MagicMock(),
+        _run_gcode_template=MagicMock(),
     )
     return host, th, lifecycle, dock, probe
 
@@ -136,7 +136,6 @@ def test_runner_order_attach_probe_dock_manual():
 
     def attach(**kwargs):
         order.append("attach")
-        assert kwargs.get("status_led") is False
         host.state.attach_state = ProbeAttachState.ATTACHED
 
     moves_after_detach = [0]
@@ -144,7 +143,6 @@ def test_runner_order_attach_probe_dock_manual():
     def detach(**kwargs):
         order.append("detach_force=%s" % kwargs.get("force", False))
         assert kwargs.get("force") is True
-        assert kwargs.get("status_led") is False
         host.state.attach_state = ProbeAttachState.DOCKED
         # Dock leaves toolhead high near dock (not over paper XY).
         th.pos = [10.0, 300.0, 25.0]
@@ -199,12 +197,13 @@ def test_runner_order_attach_probe_dock_manual():
         "probe", "z_offset", "3.300"
     )
     assert host._session.hold_depth == 0
-    # LED owned by runner: CALIBRATING_Z before paper, READY only on ACCEPT.
-    led_calls = [c.args[0] for c in host._status_led.call_args_list]
-    assert led_calls[0] == "CALIBRATING_Z"
-    assert "READY" in led_calls  # finalize
-    # After dock-before-paper, still CALIBRATING_Z (not READY from detach)
-    assert led_calls.count("CALIBRATING_Z") >= 2
+    assert [c.args[0] for c in host._run_gcode_template.call_args_list] == [
+        "pre_probe_calibrate_gcode",
+        "post_probe_calibrate_gcode",
+    ]
+    assert all(
+        c.kwargs.get("soft") is True for c in host._run_gcode_template.call_args_list
+    )
 
 
 def test_runner_force_dock_even_if_locked():
@@ -222,7 +221,7 @@ def test_runner_force_dock_even_if_locked():
     ):
         ProbeCalibrateRunner(host).run(_FakeGcmd({"MOVE": "0"}))
 
-    lifecycle.detach_probe.assert_called_with(force=True, status_led=False)
+    lifecycle.detach_probe.assert_called_with(force=True)
 
 
 def test_runner_error_still_force_docks():
@@ -242,9 +241,36 @@ def test_runner_error_still_force_docks():
         with pytest.raises(RuntimeError, match="probe fail"):
             ProbeCalibrateRunner(host).run(_FakeGcmd({"MOVE": "0"}))
 
-    lifecycle.detach_probe.assert_called_with(force=True, status_led=False)
+    lifecycle.detach_probe.assert_called_with(force=True)
     assert host._session.hold_depth == 0
     manual.ManualProbeHelper.assert_not_called()
+    assert [c.args[0] for c in host._run_gcode_template.call_args_list] == [
+        "pre_probe_calibrate_gcode",
+        "post_probe_calibrate_gcode",
+    ]
+
+
+def test_manual_probe_helper_ctor_failure_still_runs_post():
+    """If ManualProbeHelper raises, post must still fire (paper never owns it)."""
+    host, th, lifecycle, dock, probe = _host()
+    ppos = SimpleNamespace(bed_x=10.0, bed_y=20.0, bed_z=1.0)
+    probe_mod = SimpleNamespace(run_single_probe=MagicMock(return_value=ppos))
+    manual = SimpleNamespace(
+        verify_no_manual_probe=MagicMock(),
+        ManualProbeHelper=MagicMock(side_effect=RuntimeError("ui fail")),
+    )
+
+    with patch(
+        "klicky_probe.probe_calibrate.import_klipper_probe_modules",
+        return_value=(probe_mod, manual),
+    ):
+        with pytest.raises(RuntimeError, match="ui fail"):
+            ProbeCalibrateRunner(host).run(_FakeGcmd({"MOVE": "0"}))
+
+    assert [c.args[0] for c in host._run_gcode_template.call_args_list] == [
+        "pre_probe_calibrate_gcode",
+        "post_probe_calibrate_gcode",
+    ]
 
 
 def test_session_holding_context_always_ends():

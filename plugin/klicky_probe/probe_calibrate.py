@@ -133,13 +133,21 @@ class ProbeCalibrateRunner:
             {str(k): str(v) for k, v in stock_params.items()},
         )
 
-        # This runner owns LED until ACCEPT/ABORT (or error).
-        h._status_led("CALIBRATING_Z")
-        paper_ui = False
+        h._run_gcode_template("pre_probe_calibrate_gcode", soft=True)
+        post_done = False
+
+        def run_post():
+            nonlocal post_done
+            if post_done:
+                return
+            post_done = True
+            h._run_gcode_template("post_probe_calibrate_gcode", soft=True)
+
+        # True only after ManualProbeHelper is registered (owns post via finalize).
+        paper_owns_post = False
         try:
             if not s.disable_docking:
-                # status_led=False: keep CALIBRATING_Z (do not flip READY mid-op).
-                h.lifecycle.attach_probe(status_led=False)
+                h.lifecycle.attach_probe()
 
             if do_move:
                 h.dock.ensure_clearance()
@@ -166,7 +174,6 @@ class ProbeCalibrateRunner:
 
             # Collision safety: always dock before paper (probe tip below nozzle).
             self._dock_before_paper()
-            h._status_led("CALIBRATING_Z")
 
             # After dock: long XY @ travel_speed (not [probe] speed), then paper
             # Z = trigger_z + 5 like stock cmd_PROBE_CALIBRATE (not clearance_z).
@@ -188,28 +195,31 @@ class ProbeCalibrateRunner:
             gcmd.respond_info(msg.probe_calibrate_paper_ready())
 
             def finalize(mpresult):
-                if mpresult is None:
-                    h._status_led("READY")
-                    return
-                z_offset = calc_probe_z_offset(
-                    ppos.bed_z, mpresult.bed_z, offsets[2]
-                )
-                h.gcode.respond_info(
-                    format_z_offset_result(probe_section, z_offset)
-                )
-                configfile = h.printer.lookup_object("configfile")
-                configfile.set(probe_section, "z_offset", "%.3f" % (z_offset,))
-                h._status_led("READY")
+                try:
+                    if mpresult is None:
+                        return
+                    z_offset = calc_probe_z_offset(
+                        ppos.bed_z, mpresult.bed_z, offsets[2]
+                    )
+                    h.gcode.respond_info(
+                        format_z_offset_result(probe_section, z_offset)
+                    )
+                    configfile = h.printer.lookup_object("configfile")
+                    configfile.set(
+                        probe_section, "z_offset", "%.3f" % (z_offset,)
+                    )
+                finally:
+                    run_post()
 
-            paper_ui = True
             manual_probe.ManualProbeHelper(h.printer, fo, finalize)
+            paper_owns_post = True
         except Exception:
-            if not paper_ui:
+            if not paper_owns_post:
                 try:
                     self._dock_before_paper(quiet=True)
                 except Exception:
                     pass
-            h._status_led("READY")
+                run_post()
             raise
 
     def _dock_before_paper(self, *, quiet: bool = False) -> None:
@@ -220,5 +230,5 @@ class ProbeCalibrateRunner:
         h.dock.ensure_clearance()
         if not quiet:
             h._log(msg.log_probe_calibrate_dock_before_paper())
-        # force=True unlocks + docks; status_led=False keeps CALIBRATING_Z.
-        h.lifecycle.detach_probe(force=True, status_led=False)
+        # force=True unlocks + docks (collision-safe before nozzle paper test).
+        h.lifecycle.detach_probe(force=True)

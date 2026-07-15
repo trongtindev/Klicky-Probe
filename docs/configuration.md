@@ -149,8 +149,69 @@ Increase `approach_x` / `approach_y` (and optionally `approach2_*`) so the entry
 | `park_after` + `park_x/y/z` | Park after attach/dock/home (`park_z` omit = keep Z) |
 | `umbilical` + `umbilical_x/y` | Early waypoint before dock path (defaults and when-to-use above) |
 | `dock_servo` + `servo_name` + angles + `servo_delay_ms` | Servo-deployed dock |
-| `pre_attach_gcode` / `post_attach_gcode` / `pre_detach_gcode` / `post_detach_gcode` | Custom snippets |
-| `home_x_gcode` / `home_y_gcode` | Custom axis homing (sensorless, etc.) |
+
+## User gcode hooks
+
+Optional G-code under `[klicky_probe]` runs at lifecycle points so you can customize per machine (status LEDs, beeps, display, extra macros, …). Omit any key you do not need.
+
+### Side-effect hooks (soft-fail)
+
+Missing hook = no-op. If a hook **raises** (unknown command, macro error, …), Klicky logs a warning, prints `klicky: hook <name> failed: …` to the console, and **continues** the core path. Soft-fail is for UI / non-critical extras — do **not** put dock-critical motion here (use `dock_servo` / approach geometry for that).
+
+| Option | When it runs |
+|--------|----------------|
+| `pre_attach_gcode` / `post_attach_gcode` | Around attach dock body (after servo deploy / after attach motion) |
+| `pre_detach_gcode` / `post_detach_gcode` | Around detach dock body |
+| `pre_homing_gcode` / `post_homing_gcode` | Start / end of plugin `G28` (`homing_override`). Also fires on internal Z rehome inside `Z_TILT_ADJUST` (nested under leveling hooks) |
+| `pre_leveling_gcode` / `post_leveling_gcode` | After attach, before stock op / after exit, for QGL, `SCREWS_TILT_CALCULATE`, `Z_TILT_ADJUST` |
+| `pre_meshing_gcode` / `post_meshing_gcode` | Same lifecycle for `BED_MESH_CALIBRATE` |
+| `pre_probe_calibrate_gcode` / `post_probe_calibrate_gcode` | Start of Klicky `PROBE_CALIBRATE`; post once on paper ACCEPT/ABORT or on error if paper UI never started |
+| `pre_probe_accuracy_gcode` / `post_probe_accuracy_gcode` | Same lifecycle for `PROBE_ACCURACY` |
+
+**Wrapped ops** (mesh / leveling / accuracy) share one order: **attach → pre_* → stock work → dock/exit → post_***. Pre runs after attach so the probe is already mounted. Post always runs even if dock-on-exit fails.
+
+Nested attach during calibrate still runs attach hooks. For a long op (e.g. paper test), put “in progress” UI on outer hooks (`pre_probe_calibrate_gcode`, …) rather than only on `post_attach_gcode`.
+
+### Axis home replacement (hard-fail)
+
+| Option | When it runs |
+|--------|----------------|
+| `home_x_gcode` / `home_y_gcode` | Replaces stock `G28 X` / `G28 Y` when set (sensorless, etc.) |
+
+These are **not** soft-fail: a failure aborts that axis home. Omit both keys to use stock homing.
+
+### Example
+
+Wire your own macros (names are yours — call whatever you already use on the printer):
+
+```ini
+[klicky_probe]
+pre_attach_gcode:
+  STATUS_BUSY
+post_attach_gcode:
+  STATUS_READY
+pre_detach_gcode:
+  STATUS_BUSY
+post_detach_gcode:
+  STATUS_READY
+pre_homing_gcode:
+  STATUS_HOMING
+post_homing_gcode:
+  STATUS_READY
+pre_leveling_gcode:
+  STATUS_LEVELING
+post_leveling_gcode:
+  STATUS_READY
+pre_meshing_gcode:
+  STATUS_MESHING
+post_meshing_gcode:
+  STATUS_READY
+pre_probe_calibrate_gcode:
+  STATUS_CALIBRATING_Z
+post_probe_calibrate_gcode:
+  STATUS_READY
+# pre_probe_accuracy_gcode: / post_probe_accuracy_gcode: optional
+```
 
 ## Meaning map from old macros (reference only — not compatible)
 

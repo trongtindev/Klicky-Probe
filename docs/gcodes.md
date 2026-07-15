@@ -289,6 +289,8 @@ DETACH_PROBE
 - `locked`: boolean
 - `session_depth` / `hold_depth`: internal counters (debug)
 
+Custom per-action G-code (LEDs, beeps, …): [configuration.md — User gcode hooks](configuration.md#user-gcode-hooks).
+
 ---
 
 ## Klipper API note

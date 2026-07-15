@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from klicky_probe.command_wrappers import CommandWrappers
+from klicky_probe.dock_policy import DockIntent
 from klicky_probe.gcode_cmd import create_stock_gcmd
 
 
@@ -64,7 +65,7 @@ def test_bed_mesh_wrapper_forwards_adaptive_on_commandline():
         gcode=gcode,
         settings=SimpleNamespace(adaptive_mesh=True),
         lifecycle=MagicMock(),
-        _status_led=MagicMock(),
+        _run_gcode_template=MagicMock(),
         _orig_bed_mesh=None,
     )
     wrappers = CommandWrappers(host)
@@ -85,6 +86,13 @@ def test_bed_mesh_wrapper_forwards_adaptive_on_commandline():
     assert "DOCK=" not in fo.commandline
     host.lifecycle.enter_probe_work.assert_called_once()
     host.lifecycle.exit_probe_work.assert_called_once()
+    # Shared lifecycle: enter → pre → body → exit → post
+    assert [c.args[0] for c in host._run_gcode_template.call_args_list] == [
+        "pre_meshing_gcode",
+        "post_meshing_gcode",
+    ]
+    assert host.lifecycle.method_calls[0][0] == "enter_probe_work"
+    assert host.lifecycle.method_calls[1][0] == "exit_probe_work"
 
 
 def test_bed_mesh_wrapper_preserves_explicit_adaptive():
@@ -96,7 +104,7 @@ def test_bed_mesh_wrapper_preserves_explicit_adaptive():
         gcode=gcode,
         settings=SimpleNamespace(adaptive_mesh=False),
         lifecycle=MagicMock(),
-        _status_led=MagicMock(),
+        _run_gcode_template=MagicMock(),
         _orig_bed_mesh=None,
     )
     wrappers = CommandWrappers(host)
@@ -110,3 +118,66 @@ def test_bed_mesh_wrapper_preserves_explicit_adaptive():
     fo = stock_prev.call_args[0][0]
     assert "ADAPTIVE=1" in fo.commandline
     assert "ADAPTIVE_MARGIN=5" in fo.commandline
+
+
+def test_run_probe_work_order_enter_pre_body_exit_post():
+    order = []
+    host = SimpleNamespace(
+        lifecycle=MagicMock(
+            enter_probe_work=MagicMock(
+                side_effect=lambda *a, **k: order.append("enter")
+            ),
+            exit_probe_work=MagicMock(
+                side_effect=lambda *a, **k: order.append("exit")
+            ),
+        ),
+        _run_gcode_template=MagicMock(
+            side_effect=lambda name, *, soft=False: order.append(name)
+        ),
+    )
+    intent = DockIntent()
+    CommandWrappers(host)._run_probe_work(
+        intent,
+        "pre_meshing_gcode",
+        "post_meshing_gcode",
+        lambda: order.append("body"),
+    )
+    assert order == [
+        "enter",
+        "pre_meshing_gcode",
+        "body",
+        "exit",
+        "post_meshing_gcode",
+    ]
+
+
+def test_run_probe_work_post_runs_if_exit_raises():
+    order = []
+    host = SimpleNamespace(
+        lifecycle=MagicMock(
+            enter_probe_work=MagicMock(
+                side_effect=lambda *a, **k: order.append("enter")
+            ),
+            exit_probe_work=MagicMock(side_effect=RuntimeError("dock fail")),
+        ),
+        _run_gcode_template=MagicMock(
+            side_effect=lambda name, *, soft=False: order.append(name)
+        ),
+    )
+    intent = DockIntent()
+    try:
+        CommandWrappers(host)._run_probe_work(
+            intent,
+            "pre_leveling_gcode",
+            "post_leveling_gcode",
+            lambda: order.append("body"),
+        )
+        assert False, "expected dock fail"
+    except RuntimeError as e:
+        assert "dock fail" in str(e)
+    assert order == [
+        "enter",
+        "pre_leveling_gcode",
+        "body",
+        "post_leveling_gcode",
+    ]

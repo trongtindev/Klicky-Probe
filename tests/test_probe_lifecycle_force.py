@@ -25,7 +25,6 @@ def _host_for_lifecycle(*, attach_state, locked, triggered):
         _query_probe_triggered=lambda: triggered,
         _debug=MagicMock(),
         _log=MagicMock(),
-        _status_led=MagicMock(),
     )
     return host, state, dock
 
@@ -43,8 +42,6 @@ def test_force_unlocks_even_when_already_docked():
 
     assert state.locked is False
     dock.dock_with_retries.assert_not_called()
-    # No READY flash when status_led default and skip path — skip returns early.
-    host._status_led.assert_not_called()
 
 
 def test_force_detach_attached_clears_lock_and_docks():
@@ -54,15 +51,13 @@ def test_force_detach_attached_clears_lock_and_docks():
         triggered=False,  # open switch ≈ attached
     )
     life = ProbeLifecycle(host)
-    life.detach_probe(force=True, status_led=False)
+    life.detach_probe(force=True)
 
     assert state.locked is False
     dock.dock_with_retries.assert_called_once()
-    # status_led=False: no BUSY/READY from detach
-    host._status_led.assert_not_called()
 
 
-def test_detach_default_sets_ready_led():
+def test_detach_default_docks_when_attached():
     host, state, dock = _host_for_lifecycle(
         attach_state=ProbeAttachState.ATTACHED,
         locked=False,
@@ -71,7 +66,5 @@ def test_detach_default_sets_ready_led():
     life = ProbeLifecycle(host)
     life.detach_probe()
 
-    assert [c.args[0] for c in host._status_led.call_args_list] == [
-        "BUSY",
-        "READY",
-    ]
+    dock.dock_with_retries.assert_called_once()
+    host._log.assert_called()

@@ -104,7 +104,7 @@ def _host(
         reactor=_FakeReactor(),
         _debug=lambda *a, **k: None,
         _xy_homed=lambda: "x" in th.homed_axes and "y" in th.homed_axes,
-        _run_template=lambda *a, **k: None,
+        _run_gcode_template=lambda *a, **k: None,
         gcode=MagicMock(),
     )
     return host, th

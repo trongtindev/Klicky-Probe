@@ -41,6 +41,27 @@ def _config_has(config, name):
 # Names listed on Mainsail/Fluidd via empty gcode_macro status objects.
 _UI_MACRO_NAMES = ("ATTACH_PROBE", "DETACH_PROBE")
 
+# Optional user gcode templates under [klicky_probe].
+# Side-effect hooks use soft=True; home_x/y axis replacements use soft=False.
+_GCODE_TEMPLATE_NAMES = (
+    "pre_attach_gcode",
+    "post_attach_gcode",
+    "pre_detach_gcode",
+    "post_detach_gcode",
+    "pre_homing_gcode",
+    "post_homing_gcode",
+    "pre_leveling_gcode",
+    "post_leveling_gcode",
+    "pre_meshing_gcode",
+    "post_meshing_gcode",
+    "pre_probe_calibrate_gcode",
+    "post_probe_calibrate_gcode",
+    "pre_probe_accuracy_gcode",
+    "post_probe_accuracy_gcode",
+    "home_x_gcode",
+    "home_y_gcode",
+)
+
 
 class _UiMacroShim:
     """Empty get_status so frontends list this as a gcode_macro button.
@@ -95,14 +116,7 @@ class KlickyProbe:
         self.homing = HomingExecutor(self)
         self.wrappers = CommandWrappers(self)
 
-        for name in (
-            "pre_attach_gcode",
-            "post_attach_gcode",
-            "pre_detach_gcode",
-            "post_detach_gcode",
-            "home_x_gcode",
-            "home_y_gcode",
-        ):
+        for name in _GCODE_TEMPLATE_NAMES:
             if _config_has(config, name):
                 try:
                     self._gcode_templates[name] = config.gettemplate(name)
@@ -412,14 +426,30 @@ class KlickyProbe:
             except Exception:
                 pass
 
-    def _run_template(self, name):
+    def _run_gcode_template(self, name, *, soft=False):
+        """
+        Run a loaded user gcode template. Missing name is no-op.
+
+        soft=True  — side-effect hooks: log + console on error, do not re-raise.
+        soft=False — axis home replacement: propagate errors (abort that home).
+        """
         tmpl = self._gcode_templates.get(name)
         if tmpl is None:
             return
-        if hasattr(tmpl, "run_gcode_from_command"):
-            tmpl.run_gcode_from_command()
-        elif isinstance(tmpl, str):
-            self.gcode.run_script_from_command(tmpl)
+        try:
+            if hasattr(tmpl, "run_gcode_from_command"):
+                tmpl.run_gcode_from_command()
+            elif isinstance(tmpl, str):
+                self.gcode.run_script_from_command(tmpl)
+        except Exception as e:
+            if not soft:
+                raise
+            text = msg.hook_failed(name, e)
+            logging.warning("%s", text)
+            try:
+                self.gcode.respond_info(text)
+            except Exception:
+                pass
 
     def _xy_homed(self) -> bool:
         th = self._toolhead or self.printer.lookup_object("toolhead")
@@ -443,12 +473,6 @@ class KlickyProbe:
         if probe is not None and hasattr(probe, "last_query"):
             return bool(probe.last_query)
         raise self.gcode.error(msg.probe_query_unavailable())
-
-    def _status_led(self, name):
-        try:
-            self.gcode.run_script_from_command("STATUS_%s" % name.upper())
-        except Exception:
-            pass
 
     def _check_over_bed(self, xy=None):
         """Raise if XY is far outside bed. ``xy`` is None → current toolhead."""
