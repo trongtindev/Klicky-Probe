@@ -8,7 +8,8 @@ The supported integration is the **`[klicky_probe]`** Klipper extra under [`plug
 
 - Requires **Klipper ≥ v0.13.0** (checked at load)
 - One config section; defaults from `[printer]` / steppers / `[probe]`
-- **`auto_attach`**: attach/dock around Klipper **probe sessions** (`start_probe_session` / `end_probe_session`)
+- **`auto_attach`**: attach/dock around Klipper **probe sessions** (`start_probe_session` / `end_probe_session`) for mesh / probe ops
+- **G28** (homing plan): owns virtual-Z attach-before / dock-after; session auto-dock suppressed during stock G28 Z
 - First-class wraps: **G28**, mesh, QGL / Z-tilt / screws, `PROBE_CALIBRATE`, `PROBE_ACCURACY` — not every Klipper probe consumer (see [docs/gcodes.md](docs/gcodes.md) scope)
 - Safe default: **dock after each probe op**; override with `PROBE_LOCK` / `DOCK` for multi-step macros
 - Adaptive bed mesh via native `ADAPTIVE` / `ADAPTIVE_MARGIN`

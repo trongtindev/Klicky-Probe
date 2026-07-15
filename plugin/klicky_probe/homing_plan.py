@@ -66,25 +66,25 @@ def plan_homing(
     approach_y: float,
     z_virtual_endstop: bool,
     dock_before_z_home: bool,
-    session_manages_probe: bool = False,
     reseat_before_z_home: bool = True,
 ) -> HomingPlan:
     """
     Build a homing plan.
 
+    Ownership (virtual Z)
+    ---------------------
+    The **homing plan owns** attach-before-Z and dock-after-Z. Klipper stock
+    G28 Z opens a probe session, but that session must not decide dock for G28
+    (executor holds session auto-dock during stock G28 Z). Session hooks remain
+    the owner for bare PROBE / mesh / leveling when no outer plan exists.
+
     home_first:
       - auto: if approach_y == 0, home Y first (dock on Y extrusion style), else X first
       - x / y: force that axis first
 
-    session_manages_probe:
-      When True (Klipper start_probe_session hooks / auto_attach), virtual-Z
-      dock after stock G28 Z is owned by the probe session end. Attach still
-      runs before home_z() so the toolhead can stage z_home_* after attach
-      (Klipper G28 Z probes at current XY; attach ends at dock exit).
-
     reseat_before_z_home:
       When True and virtual Z, require_fresh_attach so a false "attached"
-      (msg.g. open wire) is caught by a dock+attach cycle before Z home (#231).
+      (e.g. open wire) is caught by a dock+attach cycle before Z home (#231).
     """
     home_x, home_y, home_z = request.home_x, request.home_y, request.home_z
     force_full = False
@@ -129,16 +129,13 @@ def plan_homing(
             leave = request.leave_probe_attached
             lock_after = bool(leave and request.lock_probe)
             require_fresh = bool(reseat_before_z_home)
-            # Always attach before home_z(): attach ends at dock exit, and
-            # Klipper stock G28 Z probes at current XY (no re-center). Session
-            # begin then no-ops; session end docks unless leave/lock/hold.
+            # Attach before home_z(): attach ends at dock exit; Klipper stock
+            # G28 Z probes at current XY (no re-center). Stage z_home_* after.
             attach_before_z = True
-            if session_manages_probe:
-                detach_after_z = False
-            else:
-                detach_after_z = not leave
+            # Plan owns post-Z dock unless leave (PROBE_LOCK / DOCK=0).
+            detach_after_z = not leave
         else:
-            # Physical Z: always clear probe before Z home when configured —
+            # Physical Z: clear probe before Z home when configured —
             # never skip detach_before_z for leave_attached (collision risk).
             if dock_before_z_home:
                 detach_before_z = True

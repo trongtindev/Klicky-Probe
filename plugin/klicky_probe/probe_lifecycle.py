@@ -143,11 +143,16 @@ class ProbeLifecycle:
 
     def on_session_begin(self, require_fresh=False) -> None:
         h = self._h
-        if h._session.begin_session():
-            h._debug(
-                "probe session begin (require_fresh=%s)" % require_fresh
-            )
+        if not h._session.begin_session():
+            return
+        h._debug("probe session begin (require_fresh=%s)" % require_fresh)
+        try:
             self.attach_probe(require_fresh=require_fresh)
+        except Exception:
+            # Roll back depth so a failed attach cannot orphan session_depth
+            # (which would suppress later outermost end → no auto-dock).
+            h._session.end_session()
+            raise
 
     def on_session_end(self) -> None:
         h = self._h

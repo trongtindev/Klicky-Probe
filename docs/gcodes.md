@@ -10,7 +10,9 @@ Command / session ──┤                                        ├──► 
                     └─ DOCK=0: leave; next op may dock ──────┘
 ```
 
-With **`auto_attach: True`** (default), Klicky hooks Klipper’s **`probe.start_probe_session` / `end_probe_session`** (Klipper v0.13+). Bed mesh, QGL, Z tilt, `PROBE_ACCURACY`, single `PROBE`, and **virtual Z `G28`** all open a session — attach on begin, dock on end (unless locked/held).
+With **`auto_attach: True`** (default), Klicky hooks Klipper’s **`probe.start_probe_session` / `end_probe_session`** (Klipper v0.13+). Bed mesh, QGL, Z tilt, `PROBE_ACCURACY`, and bare `PROBE` attach on session begin and dock on end (unless locked/held).
+
+**Virtual Z `G28` is different:** the homing plan owns attach-before-Z and dock-after-Z. Stock G28 Z still opens a probe session, but auto-dock from that session is suppressed so G28 has a single owner (see F3).
 
 Do **not** put Klicky attach XY motion in `[probe] activate_gcode` — Klipper forbids toolhead moves there.
 
@@ -92,12 +94,16 @@ Prefer **`PROBE_LOCK=1`** for long START macros so an intermediate command canno
 ### F3 — Virtual Z home (`G28` + `probe:z_virtual_endstop`)
 
 ```text
-[auto_attach + virtual Z]
-  attach before stock G28 Z      # plan attach_before_z (session begin no-ops)
-  move to z_home_x/y             # safe_z_home equivalent; Klipper probes current XY
+[homing plan owns probe for G28]
+  attach before stock G28 Z      # plan attach_before_z
+  move to z_home_x/y             # Klipper probes at current XY
+  hold session auto-dock         # stock G28 Z opens a session; do not dock there
   home Z samples
-  dock  @ end_probe_session      # unless PROBE_LOCK / DOCK=0
+  dock after Z (plan)            # detach_after_z unless PROBE_LOCK / DOCK=0
 ```
+
+`auto_attach` session hooks still attach/dock for bare `PROBE` / mesh / leveling.
+G28 does not share that ownership: one owner avoids double dock or missed dock.
 
 ### F4 — Physical Z home
 
@@ -178,7 +184,7 @@ With `reseat_before_z_home: True` (default), virtual-Z home forces a **detach + 
 
 | Command | Behavior |
 |---------|----------|
-| `G28` | Klicky-aware XY order; virtual Z uses probe session when `auto_attach` |
+| `G28` | Klicky-aware XY order; virtual Z attach/dock owned by homing plan |
 | `G28 X` / `Y` / `Z` | Selected axes |
 | `G28 … PROBE_LOCK=1` | After virtual Z, leave attached and locked |
 | `G28 … DOCK=0` | Leave attached without lock |
@@ -213,7 +219,7 @@ Klicky does **not** wrap every Klipper module that can call the probe. Product t
 | Mesh | `BED_MESH_CALIBRATE` |
 | Leveling | `QUAD_GANTRY_LEVEL`, `Z_TILT_ADJUST`, `SCREWS_TILT_CALCULATE` |
 | Probe tools | `PROBE_CALIBRATE`, `PROBE_ACCURACY` |
-| Session consumers | Any code path that opens `start_probe_session` (including bare `PROBE` and virtual-Z home) |
+| Session consumers | Bare `PROBE` and other unwrapped `start_probe_session` callers (virtual-Z G28 session is held; plan docks) |
 
 Shared `PROBE_LOCK` / `DOCK` params apply to the **wrapped** commands listed above (and `G28`).
 

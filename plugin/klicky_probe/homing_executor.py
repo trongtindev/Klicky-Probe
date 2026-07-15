@@ -16,7 +16,6 @@ class HomingExecutor:
         s = h.settings
         th = h._toolhead
         homed = th.get_status(h.reactor.monotonic()).get("homed_axes", "")
-        session_manages = bool(s.auto_attach and s.z_virtual_endstop)
         plan = plan_homing(
             req,
             xy_homed=("x" in homed and "y" in homed),
@@ -24,10 +23,10 @@ class HomingExecutor:
             approach_y=s.approach_y,
             z_virtual_endstop=s.z_virtual_endstop,
             dock_before_z_home=s.dock_before_z_home,
-            session_manages_probe=session_manages,
             reseat_before_z_home=s.reseat_before_z_home,
         )
         if plan.reset_lock:
+            # Full G28 policy: clear leave-lock so the new home applies leave intent.
             h.state.unlock()
             h._session.reset_holds()
 
@@ -38,21 +37,6 @@ class HomingExecutor:
         for axis in plan.xy_order:
             self.home_axis(axis)
 
-        # Fallback oneshot for rare paths where session attach is still deferred
-        # (no attach_before_z). Default virtual-Z pre-attaches with require_fresh
-        # on attach_probe instead (#231 / z_home XY staging).
-        arm_oneshot = bool(
-            plan.home_z
-            and plan.require_fresh_attach
-            and session_manages
-            and not plan.attach_before_z
-        )
-        if arm_oneshot:
-            h.lifecycle.arm_require_fresh_oneshot()
-        else:
-            h.lifecycle.clear_require_fresh_oneshot()
-
-        hold_for_leave = False
         try:
             if plan.home_z:
                 if plan.detach_before_z:
@@ -63,13 +47,18 @@ class HomingExecutor:
                     )
                     if plan.lock_after_attach:
                         h.state.lock()
-                    elif req.leave_probe_attached and not req.lock_probe:
-                        h._session.begin_hold()
-                        hold_for_leave = True
+                # Virtual Z stock G28 opens a probe session. Plan owns attach/dock
+                # for G28; suppress session auto-dock so end_probe_session does
+                # not also detach (single owner). Only needed when hooks exist.
+                suppress_session_dock = bool(
+                    s.auto_attach and s.z_virtual_endstop
+                )
+                if suppress_session_dock:
+                    h._session.begin_hold()
                 try:
                     self.home_z()
                 finally:
-                    if hold_for_leave:
+                    if suppress_session_dock:
                         h._session.end_hold()
                 if plan.detach_after_z:
                     h.lifecycle.detach_probe()

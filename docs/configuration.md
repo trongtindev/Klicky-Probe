@@ -25,7 +25,7 @@ Rule: **if you do not set an option, it is derived from existing Klipper config*
 | Option | Default | Flow impact |
 |--------|---------|-------------|
 | `homing_override` | `True` | Plugin owns `G28` (XY order, Z dock/attach policy). Conflicts with `[safe_z_home]` / `[homing_override]`. **Off:** stock G28; you must attach before virtual Z yourself. |
-| `auto_attach` | `True` | **Single gate** for automatic attach/dock: session hooks (`start_probe_session` / `end_probe_session`), plus wraps for `BED_MESH_CALIBRATE`, `PROBE_ACCURACY`, QGL / Z_TILT / SCREWS. **Off:** none of those install; use `ATTACH_PROBE` / `DETACH_PROBE` (flow F6). Bare `PROBE` also will not auto-dock. |
+| `auto_attach` | `True` | **Gate** for session hooks (`start_probe_session` / `end_probe_session`) and wraps for `BED_MESH_CALIBRATE`, `PROBE_ACCURACY`, QGL / Z_TILT / SCREWS. **G28** attach/dock is owned by the homing plan when `homing_override: True` (session auto-dock is suppressed during stock virtual-Z G28). **Off:** no session hooks/wraps; use `ATTACH_PROBE` / `DETACH_PROBE` (flow F6). Bare `PROBE` will not auto-dock. |
 | `wrap_probe_calibrate` | `True` | Wrap `PROBE_CALIBRATE` (attach + leave for paper test). **Independent of `auto_attach`** (paper-test ergonomics). **Off:** stock calibrate only. |
 | `dock_before_z_home` | `True` | Physical Z: dock **before** Z home (F4). |
 | `disable_docking` | `False` | Skip all attach/dock motion (debug). Breaks virtual-Z attach if you still need the probe. |

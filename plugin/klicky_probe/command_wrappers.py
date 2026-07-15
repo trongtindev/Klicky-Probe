@@ -19,12 +19,17 @@ class CommandWrappers:
         """
         Wrap PrinterProbe.start_probe_session (Klipper v0.13+).
 
-        Mesh, QGL, Z_TILT, PROBE_ACCURACY, PROBE, and virtual-Z G28 all use this API.
+        Session hooks own attach/dock for probe ops without an outer plan
+        (bare PROBE, mesh samples, etc.). Virtual-Z G28 also opens a session,
+        but HomingExecutor holds auto-dock during stock G28 Z so the **plan**
+        remains the single dock owner for home.
         """
         h = self._h
         probe = h._probe
         orig_start = probe.start_probe_session
         lifecycle = h.lifecycle
+        # SampleAveragingHelper is a singleton; wrap end_probe_session once.
+        end_hooked = {"done": False}
 
         def start_probe_session(gcmd):
             # Consume one-shot only on outermost begin so nested samples
@@ -36,16 +41,25 @@ class CommandWrappers:
             ):
                 require_fresh = lifecycle.consume_require_fresh_oneshot()
             lifecycle.on_session_begin(require_fresh=require_fresh)
-            session = orig_start(gcmd)
-            orig_end = session.end_probe_session
+            try:
+                session = orig_start(gcmd)
+            except Exception:
+                # begin_session already ran; undo counter without docking.
+                # (attach failures are rolled back inside on_session_begin.)
+                if h._session.session_depth > 0:
+                    h._session.end_session()
+                raise
+            if not end_hooked["done"]:
+                orig_end = session.end_probe_session
 
-            def end_probe_session(*args, **kwargs):
-                try:
-                    return orig_end(*args, **kwargs)
-                finally:
-                    lifecycle.on_session_end()
+                def end_probe_session(*args, **kwargs):
+                    try:
+                        return orig_end(*args, **kwargs)
+                    finally:
+                        lifecycle.on_session_end()
 
-            session.end_probe_session = end_probe_session
+                session.end_probe_session = end_probe_session
+                end_hooked["done"] = True
             return session
 
         probe.start_probe_session = start_probe_session

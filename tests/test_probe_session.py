@@ -34,8 +34,8 @@ def test_hold_depth():
     assert c.hold_depth == 0
 
 
-def test_virtual_z_session_manages_pre_attach_session_docks():
-    """Pre-attach so home_z can stage z_home_* after attach ends at dock exit."""
+def test_virtual_z_plan_owns_attach_and_dock():
+    """G28 virtual Z: plan attaches before and docks after (single owner)."""
     req = HomingRequest(home_x=False, home_y=False, home_z=True)
     plan = plan_homing(
         req,
@@ -44,14 +44,13 @@ def test_virtual_z_session_manages_pre_attach_session_docks():
         approach_y=0.0,
         z_virtual_endstop=True,
         dock_before_z_home=True,
-        session_manages_probe=True,
     )
     assert plan.attach_before_z is True
-    assert plan.detach_after_z is False
+    assert plan.detach_after_z is True
     assert plan.require_fresh_attach is True
 
 
-def test_virtual_z_session_manages_leave_pre_attaches():
+def test_virtual_z_leave_skips_plan_dock():
     req = HomingRequest(
         home_x=False,
         home_y=False,
@@ -66,15 +65,20 @@ def test_virtual_z_session_manages_leave_pre_attaches():
         approach_y=0.0,
         z_virtual_endstop=True,
         dock_before_z_home=True,
-        session_manages_probe=True,
     )
     assert plan.attach_before_z is True
     assert plan.detach_after_z is False
     assert plan.lock_after_attach is True
 
 
-def test_virtual_z_without_session_still_plan_managed():
-    req = HomingRequest(home_x=False, home_y=False, home_z=True)
+def test_virtual_z_dock_zero_leave_without_lock():
+    req = HomingRequest(
+        home_x=False,
+        home_y=False,
+        home_z=True,
+        leave_probe_attached=True,
+        lock_probe=False,
+    )
     plan = plan_homing(
         req,
         xy_homed=True,
@@ -82,7 +86,6 @@ def test_virtual_z_without_session_still_plan_managed():
         approach_y=0.0,
         z_virtual_endstop=True,
         dock_before_z_home=True,
-        session_manages_probe=False,
     )
-    assert plan.attach_before_z is True
-    assert plan.detach_after_z is True
+    assert plan.detach_after_z is False
+    assert plan.lock_after_attach is False
