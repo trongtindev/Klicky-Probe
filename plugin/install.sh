@@ -537,8 +537,9 @@ restart_service() {
   fi
 
   info "Restarting ${svc} service..."
-  # sudo -n: never prompt for a password (avoids hang in non-interactive shells)
-  if sudo -n systemctl restart "${svc}" 2>/dev/null || systemctl restart "${svc}" 2>/dev/null; then
+  # Same as historical install: prefer sudo systemctl (NOPASSWD on typical MainsailOS).
+  # Avoid bare systemctl-first paths that trigger interactive polkit prompts.
+  if sudo systemctl restart "${svc}" 2>/dev/null || systemctl restart "${svc}" 2>/dev/null; then
     return 0
   fi
   return 2
