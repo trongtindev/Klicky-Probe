@@ -24,7 +24,7 @@ def _host_for_lifecycle(*, attach_state, locked, triggered):
         _xy_homed=lambda: True,
         _query_probe_triggered=lambda: triggered,
         _debug=MagicMock(),
-        _log=MagicMock(),
+        _verbose=MagicMock(),
     )
     return host, state, dock
 
@@ -67,4 +67,4 @@ def test_detach_default_docks_when_attached():
     life.detach_probe()
 
     dock.dock_with_retries.assert_called_once()
-    host._log.assert_called()
+    host._verbose.assert_called()

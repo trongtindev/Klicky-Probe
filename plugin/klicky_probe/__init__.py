@@ -12,7 +12,14 @@ import logging
 
 from . import messages as msg
 from .command_wrappers import CommandWrappers
-from .constants import ANNOUNCE_CONSOLE_DELAY
+from .constants import (
+    ANNOUNCE_CONSOLE_DELAY,
+    LOG_LEVEL_DEBUG,
+    LOG_LEVEL_DEFAULT,
+    LOG_LEVEL_VERBOSE,
+    log_level_enabled,
+    ready_lines_for_log_level,
+)
 from .defaults import (
     PrinterSnapshot,
     build_printer_snapshot_from_settings,
@@ -134,8 +141,6 @@ class KlickyProbe:
         self.printer.register_event_handler("klippy:connect", self._handle_connect)
         self.printer.register_event_handler("klippy:ready", self._handle_ready)
 
-        logging.info("%s", msg.log_loading(KLICKY_PROBE_VERSION))
-
         self.gcode.register_command(
             "ATTACH_PROBE", self.cmd_ATTACH_PROBE, desc=msg.help_attach_probe()
         )
@@ -203,6 +208,8 @@ class KlickyProbe:
 
         if _config_has(config, "home_first"):
             user["home_first"] = config.get("home_first")
+        if _config_has(config, "log_level"):
+            user["log_level"] = config.get("log_level")
         if _config_has(config, "servo_name"):
             user["servo_name"] = config.get("servo_name")
         if _config_has(config, "dock_retries"):
@@ -267,55 +274,58 @@ class KlickyProbe:
         if self.settings.auto_attach and not hasattr(probe, "start_probe_session"):
             raise self.printer.config_error(msg.session_api_required())
 
-        # Always log resolved geometry to klippy.log at connect
+        # Connect dump is klippy.log-only (same sink for both lines), verbose+.
         s = self.settings
-        logging.info(
-            "%s",
-            msg.log_config_ok(
-                KLICKY_PROBE_VERSION,
-                ver,
-                s.dock_x,
-                s.dock_y,
-                s.dock_z,
-                s.approach_x,
-                s.approach_y,
-                s.approach_z,
-                s.detach_x,
-                s.detach_y,
-                s.detach_z,
-                s.clearance_z,
-                s.travel_speed,
-                s.bed_min_x,
-                s.bed_max_x,
-                s.bed_min_y,
-                s.bed_max_y,
-                s.z_home_x,
-                s.z_home_y,
-                s.auto_attach,
-                s.homing_override,
-                s.adaptive_mesh,
-            ),
-        )
-        if s.debug or s.verbose:
-            self._log(
-                msg.log_resolved_detail(
-                    s.attach_speed,
-                    s.detach_speed,
-                    s.z_speed,
-                    s.dock_before_z_home,
-                    s.reseat_before_z_home,
-                    s.safe_dock_travel,
-                    s.safe_xy_before_dock,
-                    s.safe_xy_x,
-                    s.safe_xy_y,
-                    s.home_first,
-                    s.dock_retries,
-                    s.wrap_probe_calibrate,
-                    s.park_after,
-                    s.umbilical,
-                    s.dock_servo,
-                    s.disable_docking,
-                )
+        if self._level_enabled(LOG_LEVEL_VERBOSE):
+            logging.info(
+                "%s",
+                msg.log_config_ok(
+                    KLICKY_PROBE_VERSION,
+                    ver,
+                    s.dock_x,
+                    s.dock_y,
+                    s.dock_z,
+                    s.approach_x,
+                    s.approach_y,
+                    s.approach_z,
+                    s.detach_x,
+                    s.detach_y,
+                    s.detach_z,
+                    s.clearance_z,
+                    s.travel_speed,
+                    s.bed_min_x,
+                    s.bed_max_x,
+                    s.bed_min_y,
+                    s.bed_max_y,
+                    s.z_home_x,
+                    s.z_home_y,
+                    s.auto_attach,
+                    s.homing_override,
+                    s.adaptive_mesh,
+                ),
+            )
+            logging.info(
+                "%s",
+                msg.info_log(
+                    msg.log_resolved_detail(
+                        s.attach_speed,
+                        s.detach_speed,
+                        s.z_speed,
+                        s.dock_before_z_home,
+                        s.reseat_before_z_home,
+                        s.safe_dock_travel,
+                        s.safe_xy_before_dock,
+                        s.safe_xy_x,
+                        s.safe_xy_y,
+                        s.home_first,
+                        s.dock_retries,
+                        s.wrap_probe_calibrate,
+                        s.park_after,
+                        s.umbilical,
+                        s.dock_servo,
+                        s.disable_docking,
+                    )
+                ),
             )
 
         # After all config sections are loaded (not in __init__) so a real
@@ -367,13 +377,12 @@ class KlickyProbe:
         self._maybe_log_skew_frame()
         self._schedule_ready_announce()
 
-    def _ready_banner_lines(self):
-        """Build multi-line ready summary from resolved settings + features."""
+    def _ready_announce_parts(self):
+        """Return (banner, detail_lines) from resolved settings + features."""
         s = self.settings
         if s is None:
-            return []
-        return msg.ready_announce_lines(
-            KLICKY_PROBE_VERSION,
+            return None, []
+        detail = msg.ready_detail_lines(
             s.dock_x,
             s.dock_y,
             s.dock_z,
@@ -393,6 +402,7 @@ class KlickyProbe:
             s.bed_max_y,
             self._ready_features,
         )
+        return msg.ready_banner(KLICKY_PROBE_VERSION), detail
 
     def _schedule_ready_announce(self) -> None:
         """Log banner now; defer console until Moonraker can receive it.
@@ -401,8 +411,15 @@ class KlickyProbe:
         (poll ~0.25s). respond_info inside the klippy:ready callback is dropped
         before any web UI client is subscribed — so console uses a one-shot
         reactor timer (same pattern as extras that register_timer + NEVER).
+
+        Default log_level=info: only the short ready line. Geometry / features
+        / gcodes require verbose+.
         """
-        lines = self._ready_banner_lines()
+        banner, detail = self._ready_announce_parts()
+        if banner is None:
+            return
+        level = self._configured_log_level()
+        lines = ready_lines_for_log_level(banner, detail, level)
         for line in lines:
             logging.info("%s", msg.log_line_for_ready(line))
         if not lines:
@@ -440,23 +457,41 @@ class KlickyProbe:
         if not name:
             return
         self._skew_frame_logged = True
-        self._log(msg.skew_frame_active(name))
+        self._verbose(msg.skew_frame_active(name))
 
-    def _log(self, text):
-        logging.info("%s", msg.info_log(text))
-        if self.settings and self.settings.verbose:
-            try:
-                self.gcode.respond_info(msg.verbose_console(text))
-            except Exception:
-                pass
+    def _configured_log_level(self) -> str:
+        if self.settings is not None:
+            return self.settings.log_level
+        return LOG_LEVEL_DEFAULT
 
-    def _debug(self, text):
-        if self.settings and self.settings.debug:
-            logging.info("%s", msg.debug_log(text))
-            try:
-                self.gcode.respond_info(msg.debug_console(text))
-            except Exception:
-                pass
+    def _level_enabled(self, wanted: str) -> bool:
+        return log_level_enabled(self._configured_log_level(), wanted)
+
+    def _emit(self, level: str, text: str, *, file_fmt, console_fmt) -> None:
+        """File + console when *level* is enabled under settings.log_level."""
+        if not self._level_enabled(level):
+            return
+        logging.info("%s", file_fmt(text))
+        try:
+            self.gcode.respond_info(console_fmt(text))
+        except Exception:
+            pass
+
+    def _verbose(self, text: str) -> None:
+        self._emit(
+            LOG_LEVEL_VERBOSE,
+            text,
+            file_fmt=msg.info_log,
+            console_fmt=msg.verbose_console,
+        )
+
+    def _debug(self, text: str) -> None:
+        self._emit(
+            LOG_LEVEL_DEBUG,
+            text,
+            file_fmt=msg.debug_log,
+            console_fmt=msg.debug_console,
+        )
 
     def _run_gcode_template(self, name, *, soft=False):
         """
@@ -541,11 +576,11 @@ class KlickyProbe:
 
     def cmd_LOCK_PROBE(self, gcmd):
         self.state.lock()
-        self._log(msg.log_probe_locked())
+        self._verbose(msg.log_probe_locked())
 
     def cmd_UNLOCK_PROBE(self, gcmd):
         self.state.unlock()
-        self._log(msg.log_probe_unlocked())
+        self._verbose(msg.log_probe_unlocked())
 
     def cmd_GET_PROBE_STATUS(self, gcmd):
         try:

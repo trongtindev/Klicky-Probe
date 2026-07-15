@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import Iterable, List, Optional, Sequence, Tuple, Union
 
+from .constants import LOG_LEVEL_CHOICES
 from .klipper_version import format_version_tuple
 
 VersionLike = Union[Tuple[int, int, int], Sequence[int]]
@@ -27,10 +28,6 @@ def _fmt_dock_z(dock_z, precision: int = 3) -> str:
 # ---------------------------------------------------------------------------
 # Startup / lifecycle (logging + gcode.respond_info)
 # ---------------------------------------------------------------------------
-
-
-def log_loading(version: str) -> str:
-    return "klicky_probe v%s: loading [klicky_probe] section" % version
 
 
 def log_config_ok(
@@ -254,8 +251,7 @@ def ready_gcodes_line(gcodes: Optional[str] = None) -> str:
     return "  gcodes: %s" % (gcodes if gcodes is not None else registered_gcodes())
 
 
-def ready_announce_lines(
-    version: str,
+def ready_detail_lines(
     dock_x: float,
     dock_y: float,
     dock_z,
@@ -275,9 +271,8 @@ def ready_announce_lines(
     bed_max_y: float,
     features: Optional[Iterable[str]] = None,
 ) -> List[str]:
-    """Full multi-line ready summary (console + log)."""
+    """Ready detail lines (geometry / motion / features / gcodes) — verbose+."""
     return [
-        ready_banner(version),
         ready_geometry_line(
             dock_x,
             dock_y,
@@ -302,6 +297,50 @@ def ready_announce_lines(
         ready_features_line(features or ()),
         ready_gcodes_line(),
     ]
+
+
+def ready_announce_lines(
+    version: str,
+    dock_x: float,
+    dock_y: float,
+    dock_z,
+    approach_x: float,
+    approach_y: float,
+    approach_z: float,
+    detach_x: float,
+    detach_y: float,
+    detach_z: float,
+    clearance_z: float,
+    travel_speed: float,
+    z_home_x: float,
+    z_home_y: float,
+    bed_min_x: float,
+    bed_max_x: float,
+    bed_min_y: float,
+    bed_max_y: float,
+    features: Optional[Iterable[str]] = None,
+) -> List[str]:
+    """Full multi-line ready summary (banner + detail)."""
+    return [ready_banner(version)] + ready_detail_lines(
+        dock_x,
+        dock_y,
+        dock_z,
+        approach_x,
+        approach_y,
+        approach_z,
+        detach_x,
+        detach_y,
+        detach_z,
+        clearance_z,
+        travel_speed,
+        z_home_x,
+        z_home_y,
+        bed_min_x,
+        bed_max_x,
+        bed_min_y,
+        bed_max_y,
+        features,
+    )
 
 
 def log_line_for_ready(line: str) -> str:
@@ -336,7 +375,7 @@ def info_log(msg: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Runtime info logs (bodies; host may prefix via _log / logging)
+# Runtime progress logs (bodies; host prefixes via _verbose / _debug)
 # ---------------------------------------------------------------------------
 
 
@@ -412,6 +451,20 @@ def home_first_invalid(value=None):
         "[klicky_probe] home_first=%r is invalid (must be auto, x, or y). "
         "Fix home_first in [klicky_probe]."
         % (value,)
+    )
+
+
+def log_level_invalid(value=None):
+    if value is None:
+        return (
+            "[klicky_probe] log_level must be one of: %s. "
+            "Fix log_level in [klicky_probe]."
+            % LOG_LEVEL_CHOICES
+        )
+    return (
+        "[klicky_probe] log_level=%r is invalid (must be one of: %s). "
+        "Fix log_level in [klicky_probe]."
+        % (value, LOG_LEVEL_CHOICES)
     )
 
 

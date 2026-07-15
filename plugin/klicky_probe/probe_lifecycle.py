@@ -70,7 +70,7 @@ class ProbeLifecycle:
 
         was_locked = h.state.locked
         if action == AttachAction.RESEAT:
-            h._log(msg.log_reseat())
+            h._verbose(msg.log_reseat())
             h.state.unlock()
             try:
                 h.dock.dock_with_retries(
@@ -95,7 +95,7 @@ class ProbeLifecycle:
             if action == AttachAction.RESEAT and was_locked:
                 h.state.lock()
 
-        h._log(msg.log_probe_attached())
+        h._verbose(msg.log_probe_attached())
         if restore:
             th.manual_move(
                 [start[0], start[1], max(start[2], s.clearance_z)], s.travel_speed
@@ -142,7 +142,7 @@ class ProbeLifecycle:
             h.state.verify_after_detach,
             h._query_probe_triggered,
         )
-        h._log(msg.log_probe_docked())
+        h._verbose(msg.log_probe_docked())
         if restore:
             th.manual_move(
                 [start[0], start[1], max(start[2], s.clearance_z)], s.travel_speed
@@ -225,6 +225,6 @@ class ProbeLifecycle:
             raise gcmd.error(msg.probe_locked_ensure())
         if force and h.state.locked:
             h.state.unlock()
-            h._log(msg.log_ensure_force_unlocked())
+            h._verbose(msg.log_ensure_force_unlocked())
         self.detach_probe()
         gcmd.respond_info(msg.probe_docked_ensure())

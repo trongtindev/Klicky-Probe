@@ -3,10 +3,18 @@ from dataclasses import replace
 import pytest
 
 from klicky_probe import messages as msg
+from klicky_probe.constants import (
+    LOG_LEVEL_DEBUG,
+    LOG_LEVEL_DEFAULT,
+    LOG_LEVEL_INFO,
+    LOG_LEVEL_VERBOSE,
+    LOG_LEVEL_WARNING,
+)
 from klicky_probe.defaults import (
     PrinterSnapshot,
     build_printer_snapshot_from_settings,
     endstop_backoff_target,
+    resolve_log_level,
     resolve_settings,
     sect_optional_float,
     sect_require_float,
@@ -17,6 +25,41 @@ from klicky_probe.defaults import (
 def test_missing_required_raises(printer_voron_like):
     with pytest.raises(ValueError, match="missing required"):
         resolve_settings({"dock_x": 1}, printer_voron_like)
+
+
+def test_log_level_default_info():
+    assert resolve_log_level({}) == LOG_LEVEL_DEFAULT
+    assert resolve_log_level({}) == LOG_LEVEL_INFO
+
+
+def test_log_level_explicit_and_case():
+    assert resolve_log_level({"log_level": "verbose"}) == LOG_LEVEL_VERBOSE
+    assert resolve_log_level({"log_level": " DEBUG "}) == LOG_LEVEL_DEBUG
+    assert resolve_log_level({"log_level": "warning"}) == LOG_LEVEL_WARNING
+
+
+def test_log_level_legacy_verbose_debug():
+    assert resolve_log_level({"debug": True}) == LOG_LEVEL_DEBUG
+    assert resolve_log_level({"verbose": True}) == LOG_LEVEL_VERBOSE
+    assert resolve_log_level({"verbose": False}) == LOG_LEVEL_INFO
+    # Explicit log_level wins over legacy bools.
+    assert resolve_log_level(
+        {"log_level": "info", "debug": True, "verbose": True}
+    ) == LOG_LEVEL_INFO
+
+
+def test_log_level_invalid_raises():
+    with pytest.raises(ValueError, match="log_level"):
+        resolve_log_level({"log_level": "trace"})
+
+
+def test_resolved_settings_log_level(minimal_user, printer_voron_like):
+    s = resolve_settings(minimal_user, printer_voron_like)
+    assert s.log_level == LOG_LEVEL_INFO
+    s2 = resolve_settings(
+        {**minimal_user, "log_level": "verbose"}, printer_voron_like
+    )
+    assert s2.log_level == LOG_LEVEL_VERBOSE
 
 
 def test_derived_bed_and_speeds(minimal_user, printer_voron_like):

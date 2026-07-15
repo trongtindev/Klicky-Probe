@@ -267,7 +267,7 @@ class DockExecutor:
                 if err is None:
                     break
                 if attempt < s.dock_retries:
-                    self._h._log(msg.log_dock_retry(mode, attempt + 1))
+                    self._h._verbose(msg.log_dock_retry(mode, attempt + 1))
             if err:
                 raise self._h.gcode.error(msg.verify_failed(err))
         finally:

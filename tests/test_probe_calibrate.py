@@ -117,7 +117,7 @@ def _host(*, disable_docking=False, locked=False, calibrate_move=True):
         gcode=gcode,
         printer=printer,
         _check_over_bed=MagicMock(),
-        _log=MagicMock(),
+        _verbose=MagicMock(),
         _run_gcode_template=MagicMock(),
     )
     return host, th, lifecycle, dock, probe

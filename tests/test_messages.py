@@ -10,6 +10,27 @@ def test_public_callables_return_nonempty_strings():
         "missing_required": (["dock_x", "dock_y"],),
         "missing_derived_setting": ("printer", "max_velocity"),
         "home_first_invalid": ("z",),
+        "log_level_invalid": ("trace",),
+        "ready_detail_lines": (
+            0.0,
+            350.0,
+            None,
+            30.0,
+            0.0,
+            0.0,
+            0.0,
+            40.0,
+            0.0,
+            25.0,
+            200.0,
+            175.0,
+            150.0,
+            0.0,
+            350.0,
+            0.0,
+            350.0,
+            ["G28 override"],
+        ),
         "klipper_version_too_old": ("v0.12.0", MIN_KLIPPER_VERSION),
         "klipper_version_unparseable": ("?", MIN_KLIPPER_VERSION),
         "outside_bed": (0.0, 350.0, 0.0, 350.0),
@@ -20,7 +41,6 @@ def test_public_callables_return_nonempty_strings():
         "hook_failed": ("pre_homing_gcode", RuntimeError("boom")),
         "probe_operation_failed_code": ("attach_failed",),
         "probe_status_report": ("attached", False, 0, 0),
-        "log_loading": ("1.0.0",),
         "log_config_ok": (
             "1.0.0",
             "v0.13.0",
@@ -116,7 +136,7 @@ def test_public_callables_return_nonempty_strings():
             continue
         args = samples.get(name, ())
         result = obj(*args)
-        if name == "ready_announce_lines":
+        if name in ("ready_announce_lines", "ready_detail_lines"):
             assert isinstance(result, list) and result, name
             for line in result:
                 assert isinstance(line, str) and line.strip(), name
@@ -164,11 +184,15 @@ def test_info_messages():
     assert "session=1" in status
 
 
-def test_startup_messages():
-    load = msg.log_loading("1.0.0")
-    assert "1.0.0" in load
-    assert "loading" in load.lower()
+def test_log_level_invalid_uses_shared_choices():
+    from klicky_probe.constants import LOG_LEVEL_CHOICES
 
+    text = msg.log_level_invalid("trace")
+    assert LOG_LEVEL_CHOICES in text
+    assert "trace" in text
+
+
+def test_startup_messages():
     lines = msg.ready_announce_lines(
         "1.0.0",
         0.0,

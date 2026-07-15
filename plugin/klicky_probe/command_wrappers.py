@@ -99,7 +99,7 @@ class CommandWrappers:
 
         probe.start_probe_session = start_probe_session
         lifecycle.clear_require_fresh_oneshot()
-        h._log(msg.log_auto_attach_hooked())
+        h._verbose(msg.log_auto_attach_hooked())
 
     def wrap_leveling_commands(self) -> None:
         """QGL and SCREWS — generic begin/original/end (no Z_TILT special case)."""
@@ -257,7 +257,7 @@ class CommandWrappers:
             def body():
                 if do_move:
                     h.dock.ensure_clearance()
-                    h._log(msg.log_probe_accuracy_stage(tx, ty))
+                    h._verbose(msg.log_probe_accuracy_stage(tx, ty))
                     pos = th.get_position()
                     th.manual_move([tx, ty, pos[2]], s.travel_speed)
                 stock_params = strip_klicky_params(params, PROBE_STAGING_PARAMS)

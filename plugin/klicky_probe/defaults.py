@@ -6,6 +6,13 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from . import messages as msg
+from .constants import (
+    LOG_LEVEL_DEBUG,
+    LOG_LEVEL_DEFAULT,
+    LOG_LEVEL_INFO,
+    LOG_LEVEL_VERBOSE,
+    LOG_LEVELS,
+)
 
 
 @dataclass
@@ -34,6 +41,24 @@ class PrinterSnapshot:
     has_exclude_object: bool = False
     has_safe_z_home: bool = False
     has_homing_override: bool = False
+
+
+def resolve_log_level(user: Dict[str, Any]) -> str:
+    """Resolve ``log_level`` from user config (legacy verbose/debug aliases).
+
+    Precedence: explicit ``log_level`` > ``debug: True`` > ``verbose`` bool >
+    default ``info``.
+    """
+    if "log_level" in user and user["log_level"] is not None:
+        raw = str(user["log_level"]).strip().lower()
+        if raw not in LOG_LEVELS:
+            raise ValueError(msg.log_level_invalid(raw))
+        return raw
+    if bool(user.get("debug", False)):
+        return LOG_LEVEL_DEBUG
+    if "verbose" in user:
+        return LOG_LEVEL_VERBOSE if bool(user["verbose"]) else LOG_LEVEL_INFO
+    return LOG_LEVEL_DEFAULT
 
 
 def sect_require_float(sect: Dict[str, Any], key: str, section: str) -> float:
@@ -130,8 +155,7 @@ class KlickySettings:
     show_ui_macros: bool
     dock_before_z_home: bool
     disable_docking: bool
-    verbose: bool
-    debug: bool
+    log_level: str
     adaptive_mesh: bool
 
     # Resolved motion / safety
@@ -277,8 +301,7 @@ def resolve_settings(
         show_ui_macros=bool(_get(user, "show_ui_macros", True)),
         dock_before_z_home=bool(_get(user, "dock_before_z_home", True)),
         disable_docking=bool(_get(user, "disable_docking", False)),
-        verbose=bool(_get(user, "verbose", True)),
-        debug=bool(_get(user, "debug", False)),
+        log_level=resolve_log_level(user),
         adaptive_mesh=bool(_get(user, "adaptive_mesh", False)),
         clearance_z=float(_get(user, "clearance_z", clearance_d)),
         z_hop_when_unhomed=bool(_get(user, "z_hop_when_unhomed", True)),

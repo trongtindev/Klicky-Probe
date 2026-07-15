@@ -151,7 +151,7 @@ class ProbeCalibrateRunner:
 
             if do_move:
                 h.dock.ensure_clearance()
-                h._log(msg.log_probe_calibrate_stage(tx, ty))
+                h._verbose(msg.log_probe_calibrate_stage(tx, ty))
                 pos = th.get_position()
                 th.manual_move([tx, ty, pos[2]], s.travel_speed)
 
@@ -229,6 +229,6 @@ class ProbeCalibrateRunner:
             return
         h.dock.ensure_clearance()
         if not quiet:
-            h._log(msg.log_probe_calibrate_dock_before_paper())
+            h._verbose(msg.log_probe_calibrate_dock_before_paper())
         # force=True unlocks + docks (collision-safe before nozzle paper test).
         h.lifecycle.detach_probe(force=True)

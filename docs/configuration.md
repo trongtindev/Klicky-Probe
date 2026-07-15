@@ -42,7 +42,7 @@ Increase `approach_x` / `approach_y` (and optionally `approach2_*`) so the entry
 | `show_ui_macros` | `True` | Register empty printer objects `gcode_macro ATTACH_PROBE` / `DETACH_PROBE` / `PROBE_CALIBRATE` / `PROBE_ACCURACY` so Mainsail/Fluidd show dashboard buttons under those names. Does **not** change G-code handlers (still Python `register_command` / stock wraps). Set `False` to omit. Skipped if a real `[gcode_macro …]` object already exists. Buttons have no param form (`MOVE`, `X`/`Y`, `RESTORE`, …); console still accepts params. |
 | `dock_before_z_home` | `True` | Physical Z: dock **before** Z home (F4). |
 | `disable_docking` | `False` | Skip all attach/dock motion (debug). Breaks virtual-Z attach if you still need the probe. |
-| `verbose` / `debug` | `True` / `False` | Logging |
+| `log_level` | `info` | Logging ladder: `warning` \| `info` \| `verbose` \| `debug`. Default **`info`**: short ready line only. `verbose` adds geometry/features dumps and attach/dock progress. `debug` adds plan/trace. `warning` is quiet (warnings/errors only). Legacy `verbose`/`debug` booleans still map if `log_level` is omitted (`debug: True` → `debug`; `verbose: True` → `verbose`; `verbose: False` → `info`). |
 | `adaptive_mesh` | `False` | Default `BED_MESH_CALIBRATE` adaptive when `ADAPTIVE` omitted |
 
 ### Adaptive mesh policy
