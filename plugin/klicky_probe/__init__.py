@@ -40,7 +40,12 @@ def _config_has(config, name):
 
 
 # Names listed on Mainsail/Fluidd via empty gcode_macro status objects.
-_UI_MACRO_NAMES = ("ATTACH_PROBE", "DETACH_PROBE", "PROBE_CALIBRATE")
+_UI_MACRO_NAMES = (
+    "ATTACH_PROBE",
+    "DETACH_PROBE",
+    "PROBE_CALIBRATE",
+    "PROBE_ACCURACY",
+)
 
 # Optional user gcode templates under [klicky_probe].
 # Side-effect hooks use soft=True; home_x/y axis replacements use soft=False.

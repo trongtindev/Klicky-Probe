@@ -34,6 +34,7 @@ def test_register_adds_all_names():
         "gcode_macro ATTACH_PROBE",
         "gcode_macro DETACH_PROBE",
         "gcode_macro PROBE_CALIBRATE",
+        "gcode_macro PROBE_ACCURACY",
     ]
     assert p.added == registered
     for name in _UI_MACRO_NAMES:
@@ -49,6 +50,7 @@ def test_register_skips_existing_without_raise():
     assert registered == [
         "gcode_macro DETACH_PROBE",
         "gcode_macro PROBE_CALIBRATE",
+        "gcode_macro PROBE_ACCURACY",
     ]
     assert existing_name not in p.added
     assert p.added == registered
@@ -56,11 +58,12 @@ def test_register_skips_existing_without_raise():
     assert not isinstance(p.objects[existing_name], _UiMacroShim)
 
 
-def test_ui_macro_names_include_probe_calibrate():
+def test_ui_macro_names_include_probe_accuracy():
     assert _UI_MACRO_NAMES == (
         "ATTACH_PROBE",
         "DETACH_PROBE",
         "PROBE_CALIBRATE",
+        "PROBE_ACCURACY",
     )
 
 
