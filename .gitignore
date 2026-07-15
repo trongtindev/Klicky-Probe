@@ -67,6 +67,3 @@ $RECYCLE.BIN/
 .direnv/
 .python-version
 .tool-versions
-
-# Hardware assets live in trongtindev/Klicky-Probe-Files — do not re-add here
-files/
