@@ -95,13 +95,15 @@ Manual fallback — copy the block from `plugin/moonraker.snippet.conf` into `mo
 
 ## Adaptive bed mesh
 
-1. Configure `[bed_mesh]` as usual.
+1. Configure `[bed_mesh]` as usual (set `adaptive_margin` there if you want a non-zero margin — stock default is `0`).
 2. Add `[exclude_object]`.
 3. Enable Label Objects / Exclude Objects in the slicer.
-4. Set `adaptive_mesh: True` (optional) or call:
+4. Set `adaptive_mesh: True` in `[klicky_probe]` (optional; injects `ADAPTIVE=1` only) or call:
 
 ```gcode
-BED_MESH_CALIBRATE ADAPTIVE=1 ADAPTIVE_MARGIN=5
+BED_MESH_CALIBRATE ADAPTIVE=1
+# optional runtime override:
+# BED_MESH_CALIBRATE ADAPTIVE=1 ADAPTIVE_MARGIN=5
 ```
 
 Run mesh during print start after objects are defined.

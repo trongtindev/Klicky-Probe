@@ -152,9 +152,7 @@ class CommandWrappers:
             s = h.settings
             intent = self.dock_intent_from_gcmd(gcmd)
             stock_params = strip_klicky_params(dict(gcmd.get_command_parameters()))
-            merged = merge_mesh_params(
-                stock_params, s.adaptive_mesh, s.adaptive_margin
-            )
+            merged = merge_mesh_params(stock_params, s.adaptive_mesh)
             h._status_led("MESHING")
             h.lifecycle.enter_probe_work(intent)
             try:

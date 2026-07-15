@@ -32,18 +32,26 @@ Rule: **if you do not set an option, it is derived from existing Klipper config*
 | `disable_docking` | `False` | Skip all attach/dock motion (debug). Breaks virtual-Z attach if you still need the probe. |
 | `verbose` / `debug` | `True` / `False` | Logging |
 | `adaptive_mesh` | `False` | Default `BED_MESH_CALIBRATE` adaptive when `ADAPTIVE` omitted |
-| `adaptive_margin` | `5` | Default margin (mm) for adaptive mesh |
 
 ### Adaptive mesh policy
 
 | Caller | `adaptive_mesh` | Result |
 |--------|-----------------|--------|
-| `ADAPTIVE=1` | any | Adaptive; margin = caller or `adaptive_margin` |
+| `ADAPTIVE=1` | any | Adaptive; margin = caller `ADAPTIVE_MARGIN` or **`[bed_mesh] adaptive_margin`** (stock) |
 | `ADAPTIVE=0` | any | Full mesh |
-| no `ADAPTIVE` | `True` | Inject `ADAPTIVE=1` + margin |
+| no `ADAPTIVE` | `True` | Inject **only** `ADAPTIVE=1` (margin stays stock) |
 | no `ADAPTIVE` | `False` | Pass-through |
 
-Requires `[bed_mesh]`. When `adaptive_mesh: True`, **`[exclude_object]` is required** at config load (Klipper would otherwise soft-fallback to a full mesh). Also enable Label/Exclude Objects in the slicer and call mesh during print start after objects are defined. Without labeled objects at mesh time, stock Klipper still uses a full mesh.
+Requires `[bed_mesh]`. Margin is **not** a `[klicky_probe]` option — set it under stock config:
+
+```ini
+[bed_mesh]
+adaptive_margin: 5   # stock default is 0; optional gcode ADAPTIVE_MARGIN overrides
+```
+
+When `adaptive_mesh: True`, **`[exclude_object]` is required** at config load (Klipper would otherwise soft-fallback to a full mesh). Also enable Label/Exclude Objects in the slicer and call mesh during print start after objects are defined. Without labeled objects at mesh time, stock Klipper still uses a full mesh.
+
+**Migration:** if you previously had `adaptive_margin` under `[klicky_probe]`, move that value to `[bed_mesh]` and delete the klicky key (unused keys error at config load).
 
 ### Klipper version
 

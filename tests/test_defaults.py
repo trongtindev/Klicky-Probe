@@ -33,7 +33,6 @@ def test_derived_bed_and_speeds(minimal_user, printer_voron_like):
     assert s.z_home_y == 150.0
     assert s.dock_z is None
     assert s.adaptive_mesh is False
-    assert s.adaptive_margin == 5.0
     assert s.safe_dock_travel is True
     assert s.reseat_before_z_home is True
     assert s.safe_xy_before_dock is True
@@ -236,7 +235,6 @@ def test_user_override_wins(minimal_user, printer_voron_like):
             "z_home_x": 10.0,
             "z_home_y": 20.0,
             "adaptive_mesh": True,
-            "adaptive_margin": 8.0,
             "clearance_z": 30.0,
             "dock_z": 15.0,
             "safe_dock_travel": False,
@@ -255,7 +253,6 @@ def test_user_override_wins(minimal_user, printer_voron_like):
     assert s.probe_accuracy_x == 175.0
     assert s.probe_accuracy_y == 150.0
     assert s.adaptive_mesh is True
-    assert s.adaptive_margin == 8.0
     assert s.clearance_z == 30.0
     assert s.dock_z == 15.0
     assert s.safe_dock_travel is False

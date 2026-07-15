@@ -12,7 +12,7 @@ The supported integration is the **`[klicky_probe]`** Klipper extra under [`plug
 - **G28** (homing plan): owns virtual-Z attach-before / dock-after; session auto-dock suppressed during stock G28 Z
 - First-class wraps: **G28**, mesh, QGL / Z-tilt / screws, `PROBE_CALIBRATE`, `PROBE_ACCURACY` — not every Klipper probe consumer (see [docs/gcodes.md](docs/gcodes.md) scope)
 - Safe default: **dock after each probe op**; override with `PROBE_LOCK` / `DOCK` for multi-step macros
-- Adaptive bed mesh via native `ADAPTIVE` / `ADAPTIVE_MARGIN`
+- Adaptive bed mesh via native `ADAPTIVE` / `ADAPTIVE_MARGIN` (margin from `[bed_mesh]`, not `[klicky_probe]`)
 - Pure-logic unit tests (`pytest`)
 
 ### Probe lifecycle (short)

@@ -133,7 +133,6 @@ class KlickySettings:
     verbose: bool
     debug: bool
     adaptive_mesh: bool
-    adaptive_margin: float
 
     # Resolved motion / safety
     clearance_z: float
@@ -281,7 +280,6 @@ def resolve_settings(
         verbose=bool(_get(user, "verbose", True)),
         debug=bool(_get(user, "debug", False)),
         adaptive_mesh=bool(_get(user, "adaptive_mesh", False)),
-        adaptive_margin=float(_get(user, "adaptive_margin", 5.0)),
         clearance_z=float(_get(user, "clearance_z", clearance_d)),
         z_hop_when_unhomed=bool(_get(user, "z_hop_when_unhomed", True)),
         travel_speed=travel,

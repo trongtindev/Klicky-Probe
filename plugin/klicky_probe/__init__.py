@@ -150,7 +150,7 @@ class KlickyProbe:
         optional_floats = (
             "dock_z", "approach_z", "detach_z",
             "approach2_x", "approach2_y", "approach2_z",
-            "adaptive_margin", "clearance_z",
+            "clearance_z",
             "travel_speed", "attach_speed", "detach_speed", "z_speed", "move_accel",
             "bed_min_x", "bed_min_y", "bed_max_x", "bed_max_y", "z_home_x", "z_home_y",
             "endstop_backoff_x", "endstop_backoff_y",
