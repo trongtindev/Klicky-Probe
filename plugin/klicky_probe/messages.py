@@ -526,6 +526,209 @@ def session_api_required():
     )
 
 
+# ---------------------------------------------------------------------------
+# Config validation (early connect — errors + suspicious warnings)
+# ---------------------------------------------------------------------------
+
+
+def config_validation_failed(error_messages: Sequence[str]) -> str:
+    """Join one or more validation errors for a single config_error raise."""
+    msgs = [str(m).strip() for m in error_messages if m]
+    if not msgs:
+        return "[klicky_probe] config validation failed."
+    if len(msgs) == 1:
+        return msgs[0]
+    prefix = "[klicky_probe] "
+
+    def _body(m: str) -> str:
+        return m[len(prefix) :] if m.startswith(prefix) else m
+
+    return "[klicky_probe] config validation failed (%d errors):\n%s" % (
+        len(msgs),
+        "\n".join("- %s" % _body(m) for m in msgs),
+    )
+
+
+def config_warnings_ready_note(count: int) -> str:
+    return "klicky: %d config warning(s) — see klippy.log" % int(count)
+
+
+def bed_range_invalid(axis: str, bed_min: float, bed_max: float) -> str:
+    return (
+        "[klicky_probe] bed_%s range invalid: bed_min_%s=%.3f >= bed_max_%s=%.3f. "
+        "Fix bed_min_%s / bed_max_%s, or fix stepper_%s position_min/max "
+        "(defaults come from steppers)."
+        % (axis, axis, bed_min, axis, bed_max, axis, axis, axis)
+    )
+
+
+def speed_non_positive(name: str, value: float) -> str:
+    return (
+        "[klicky_probe] %s must be > 0 (got %s). "
+        "Set a positive speed/accel in [klicky_probe], or fix [printer] "
+        "max_velocity / max_accel if this value is derived."
+        % (name, value)
+    )
+
+
+def clearance_z_non_positive(value: float) -> str:
+    return (
+        "[klicky_probe] clearance_z must be > 0 (got %s). "
+        "Set clearance_z to a safe travel height (typically >= 25)."
+        % (value,)
+    )
+
+
+def dock_retries_negative(value: int) -> str:
+    return (
+        "[klicky_probe] dock_retries must be >= 0 (got %s). "
+        "Set dock_retries to 0 or a positive retry count."
+        % (value,)
+    )
+
+
+def park_incomplete() -> str:
+    return (
+        "[klicky_probe] park_after: True requires park_x and park_y. "
+        "Set both park_x and park_y, or set park_after: False."
+    )
+
+
+def zero_approach(length: float, minimum: float) -> str:
+    return (
+        "[klicky_probe] approach vector is too small "
+        "(hypot(approach_x, approach_y)=%.3f mm; need >= %.1f). "
+        "Set approach_x / approach_y so the toolhead stages away from the dock "
+        "(see config/sample-klicky.cfg)."
+        % (length, minimum)
+    )
+
+
+def zero_detach(length: float, minimum: float) -> str:
+    return (
+        "[klicky_probe] detach vector is too small "
+        "(hypot(detach_x, detach_y)=%.3f mm; need >= %.1f). "
+        "Set detach_x / detach_y to a release slide that clears the magnets "
+        "(see config/sample-klicky.cfg)."
+        % (length, minimum)
+    )
+
+
+def zero_attach_entry_offset(length: float, minimum: float) -> str:
+    return (
+        "[klicky_probe] attach entry offset is too small "
+        "(hypot(approach+approach2)=%.3f mm; need >= %.1f). "
+        "approach and approach2 nearly cancel — attach entry collapses onto the dock. "
+        "Fix approach_* / approach2_* so entry stages clear of the dock."
+        % (length, minimum)
+    )
+
+
+def point_outside_machine(
+    label: str,
+    x: float,
+    y: float,
+    xmin: float,
+    xmax: float,
+    ymin: float,
+    ymax: float,
+) -> str:
+    return (
+        "[klicky_probe] %s (%.3f, %.3f) is outside the machine envelope "
+        "(X %.3f..%.3f, Y %.3f..%.3f from stepper position_min/max). "
+        "Fix that coordinate, or correct stepper_x/y position_min/max so the "
+        "toolhead can reach it. Dock points use machine limits, not bed_*."
+        % (label, x, y, xmin, xmax, ymin, ymax)
+    )
+
+
+def point_outside_bed(
+    label: str,
+    x: float,
+    y: float,
+    bed_min_x: float,
+    bed_max_x: float,
+    bed_min_y: float,
+    bed_max_y: float,
+) -> str:
+    return (
+        "[klicky_probe] %s (%.3f, %.3f) is outside the bed "
+        "(X %.3f..%.3f, Y %.3f..%.3f). "
+        "Fix the staging XY, bed_min_*/bed_max_*, or probe x/y_offset "
+        "(derived targets use bed center - probe offsets)."
+        % (label, x, y, bed_min_x, bed_max_x, bed_min_y, bed_max_y)
+    )
+
+
+def servo_missing(servo_name: str) -> str:
+    return (
+        "[klicky_probe] dock_servo: True but servo %r was not found. "
+        "Add a [servo %s] section (or matching servo name), or set "
+        "dock_servo: False."
+        % (servo_name, servo_name)
+    )
+
+
+def umbilical_equals_safe_xy(x: float, y: float) -> str:
+    return (
+        "[klicky_probe] umbilical and safe_xy are the same point (%.3f, %.3f). "
+        "That double-stages the same XY — enable only one, or set different "
+        "umbilical_x/y and safe_xy_x/y (see docs/configuration.md dock path)."
+        % (x, y)
+    )
+
+
+def umbilical_placeholder(x: float, y: float) -> str:
+    return (
+        "[klicky_probe] umbilical: True still uses placeholder coords "
+        "(%.3f, %.3f). Set umbilical_x / umbilical_y to a free corner on "
+        "your machine (defaults are not machine-specific)."
+        % (x, y)
+    )
+
+
+def disable_docking_virtual_z() -> str:
+    return (
+        "[klicky_probe] disable_docking: True with a virtual Z endstop. "
+        "Homing Z needs the probe attached — set disable_docking: False, "
+        "or do not use probe:z_virtual_endstop while docking is disabled."
+    )
+
+
+def homing_override_off_virtual_z() -> str:
+    return (
+        "[klicky_probe] homing_override: False with a virtual Z endstop. "
+        "Stock G28 will not attach the probe — run ATTACH_PROBE before G28 Z, "
+        "or set homing_override: True so the plugin owns homing."
+    )
+
+
+def wrap_calibrate_off() -> str:
+    return (
+        "[klicky_probe] wrap_probe_calibrate: False. "
+        "Stock PROBE_CALIBRATE leaves a magnetic probe mounted for the paper "
+        "test — set wrap_probe_calibrate: True unless you intentionally manage "
+        "attach/dock yourself."
+    )
+
+
+def speed_above_printer_max(name: str, value: float, max_velocity: float) -> str:
+    return (
+        "[klicky_probe] %s=%.3f exceeds [printer] max_velocity=%.3f. "
+        "Lower %s or raise max_velocity — Klipper may reject or clamp moves."
+        % (name, value, max_velocity, name)
+    )
+
+
+def clearance_below_probe(clearance_z: float, recommended: float) -> str:
+    return (
+        "[klicky_probe] clearance_z=%.3f is below the probe-based floor "
+        "(~%.3f from |probe z_offset| + pad). Raise clearance_z to avoid "
+        "dragging the probe during dock travel."
+        % (clearance_z, recommended)
+    )
+
+
 def klipper_version_too_old(found, required):
     return (
         "[klicky_probe] Klipper %s is too old (need >= v%s). "

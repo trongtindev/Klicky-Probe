@@ -87,11 +87,13 @@ def euclid_like_dock() -> DockGeometry:
 
 @pytest.fixture
 def minimal_user() -> dict:
+    # Rear dock: approach from bed side; dock_x inset so release (dock+detach)
+    # stays inside the default 0..max envelope (printer_voron_like).
     return {
-        "dock_x": 0.0,
+        "dock_x": 40.0,
         "dock_y": 300.0,
-        "approach_x": 30.0,
-        "approach_y": 0.0,
-        "detach_x": 0.0,
-        "detach_y": 40.0,
+        "approach_x": 0.0,
+        "approach_y": 30.0,
+        "detach_x": -40.0,
+        "detach_y": 0.0,
     }

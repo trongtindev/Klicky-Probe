@@ -42,6 +42,20 @@ LOG_LEVEL_RANK = {name: i + 1 for i, name in enumerate(LOG_LEVEL_ORDER)}
 LOG_LEVELS = frozenset(LOG_LEVEL_ORDER)
 LOG_LEVEL_CHOICES = ", ".join(LOG_LEVEL_ORDER)
 
+# Early config validation (config_validate.py) — thresholds only.
+CONFIG_SEVERITY_ERROR = "error"
+CONFIG_SEVERITY_WARNING = "warning"
+# Min XY length for approach / detach vectors (mm). Zero vectors collapse paths.
+CONFIG_MIN_APPROACH_MM = 1.0
+CONFIG_MIN_DETACH_MM = 1.0
+# Points considered the same for umbilical vs safe_xy overlap.
+CONFIG_XY_EPS_MM = 0.5
+# Default umbilical coords when umbilical: True (placeholder — not machine-specific).
+DEFAULT_UMBILICAL_X = 15.0
+DEFAULT_UMBILICAL_Y = 15.0
+# clearance_z should stay above |probe z_offset| + this pad (matches derive_clearance_z).
+CONFIG_CLEARANCE_PROBE_PAD_MM = 5.0
+
 
 def log_level_enabled(configured: str, wanted: str) -> bool:
     """True when *wanted* should emit under configured *log_level*."""

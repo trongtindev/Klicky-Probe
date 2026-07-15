@@ -53,6 +53,7 @@ def _host_for_announce(*, settings=_DEFAULT, features=None):
     host = SimpleNamespace(
         settings=settings,
         _ready_features=list(features or ["G28 override"]),
+        _config_warning_count=0,
         _pending_ready_console_lines=None,
         gcode=MagicMock(),
         reactor=reactor,

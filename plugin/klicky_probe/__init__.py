@@ -12,11 +12,13 @@ import logging
 
 from . import messages as msg
 from .command_wrappers import CommandWrappers
+from .config_validate import validate_klicky_config
 from .constants import (
     ANNOUNCE_CONSOLE_DELAY,
     KLICKY_PROBE_VERSION,
     LOG_LEVEL_DEBUG,
     LOG_LEVEL_DEFAULT,
+    LOG_LEVEL_INFO,
     LOG_LEVEL_VERBOSE,
     log_level_enabled,
     ready_lines_for_log_level,
@@ -25,7 +27,6 @@ from .defaults import (
     PrinterSnapshot,
     build_printer_snapshot_from_settings,
     resolve_settings,
-    validate_homing_conflicts,
 )
 from .dock_executor import DockExecutor
 from .homing_executor import HomingExecutor
@@ -121,6 +122,7 @@ class KlickyProbe:
         self._gcode_templates = {}
         self._skew_frame_logged = False
         self._ready_features = []  # feature labels installed at ready
+        self._config_warning_count = 0  # connect-time validation warnings
         # Lines deferred for gcode console (Moonraker subscribes post-READY).
         self._pending_ready_console_lines = None
 
@@ -261,16 +263,20 @@ class KlickyProbe:
         except ValueError as e:
             raise self.printer.config_error(str(e)) from e
 
-        err = validate_homing_conflicts(self.settings, snap)
-        if err:
-            raise self.printer.config_error(err)
-
-        if self.settings.adaptive_mesh and not snap.has_bed_mesh:
-            raise self.printer.config_error(msg.adaptive_needs_bed_mesh())
-        if self.settings.adaptive_mesh and not snap.has_exclude_object:
-            raise self.printer.config_error(msg.adaptive_needs_exclude_object())
-        if self.settings.auto_attach and not hasattr(probe, "start_probe_session"):
-            raise self.printer.config_error(msg.session_api_required())
+        has_servo = True
+        if self.settings.dock_servo:
+            name = self.settings.servo_name
+            has_servo = (
+                name is not None
+                and self.printer.lookup_object("servo %s" % name, None) is not None
+            )
+        result = validate_klicky_config(
+            self.settings,
+            snap,
+            has_servo=has_servo,
+            has_session_api=hasattr(probe, "start_probe_session"),
+        )
+        self._apply_config_validation(result)
 
         # Connect dump is klippy.log-only (same sink for both lines), verbose+.
         s = self.settings
@@ -330,6 +336,16 @@ class KlickyProbe:
         # [gcode_macro ATTACH_PROBE] is never short-circuited by load_object.
         if s.show_ui_macros:
             register_ui_macro_shims(self.printer)
+
+    def _apply_config_validation(self, result) -> None:
+        """Emit connect-time warnings; raise config_error if any hard errors."""
+        self._config_warning_count = len(result.warnings)
+        for issue in result.warnings:
+            logging.warning("%s", issue.message)
+        if result.errors:
+            raise self.printer.config_error(
+                msg.config_validation_failed([e.message for e in result.errors])
+            )
 
     def _handle_ready(self):
         self._toolhead = self.printer.lookup_object("toolhead")
@@ -418,6 +434,14 @@ class KlickyProbe:
             return
         level = self._configured_log_level()
         lines = ready_lines_for_log_level(banner, detail, level)
+        # Config warnings already logged at connect; short console note at info+.
+        if (
+            self._config_warning_count
+            and log_level_enabled(level, LOG_LEVEL_INFO)
+            and lines
+        ):
+            note = msg.config_warnings_ready_note(self._config_warning_count)
+            lines = [lines[0], note, *list(lines[1:])]
         for line in lines:
             logging.info("%s", msg.log_line_for_ready(line))
         if not lines:

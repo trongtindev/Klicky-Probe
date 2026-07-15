@@ -14,6 +14,7 @@ from .geometry import (
     attach_waypoints,
     clearance_needed,
     detach_waypoints,
+    dock_geometry_from_settings,
     entry_xy,
     travel_to_entry_waypoints,
 )
@@ -33,21 +34,7 @@ class DockExecutor:
         self._unhomed_z_hop_done = False
 
     def geometry(self) -> DockGeometry:
-        s = self._h.settings
-        return DockGeometry(
-            dock_x=s.dock_x,
-            dock_y=s.dock_y,
-            dock_z=s.dock_z,
-            approach_x=s.approach_x,
-            approach_y=s.approach_y,
-            approach_z=s.approach_z,
-            detach_x=s.detach_x,
-            detach_y=s.detach_y,
-            detach_z=s.detach_z,
-            approach2_x=s.approach2_x,
-            approach2_y=s.approach2_y,
-            approach2_z=s.approach2_z,
-        )
+        return dock_geometry_from_settings(self._h.settings)
 
     def speed(self, role: str) -> float:
         s = self._h.settings

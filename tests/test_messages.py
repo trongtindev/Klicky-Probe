@@ -128,6 +128,22 @@ def test_public_callables_return_nonempty_strings():
         "info_log": ("probe attached",),
         "log_dock_retry": ("attach", 2),
         "ui_macro_skip_exists": ("gcode_macro ATTACH_PROBE",),
+        "config_validation_failed": (["err a", "err b"],),
+        "config_warnings_ready_note": (2,),
+        "bed_range_invalid": ("x", 100.0, 50.0),
+        "speed_non_positive": ("attach_speed", 0.0),
+        "clearance_z_non_positive": (0.0,),
+        "dock_retries_negative": (-1,),
+        "zero_approach": (0.0, 1.0),
+        "zero_detach": (0.0, 1.0),
+        "zero_attach_entry_offset": (0.0, 1.0),
+        "point_outside_machine": ("dock_x/y", -1.0, 0.0, 0.0, 350.0, 0.0, 350.0),
+        "point_outside_bed": ("z_home_x/y", -1.0, 0.0, 0.0, 350.0, 0.0, 350.0),
+        "servo_missing": ("dock",),
+        "umbilical_equals_safe_xy": (15.0, 15.0),
+        "umbilical_placeholder": (15.0, 15.0),
+        "speed_above_printer_max": ("travel_speed", 500.0, 300.0),
+        "clearance_below_probe": (10.0, 25.0),
     }
     for name, obj in inspect.getmembers(msg, inspect.isfunction):
         if name.startswith("_"):

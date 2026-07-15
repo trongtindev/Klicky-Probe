@@ -11,8 +11,21 @@ Comment/uncomment template: [`config/sample-klicky.cfg`](../config/sample-klicky
 | Option | Description |
 |--------|-------------|
 | `dock_x`, `dock_y` | Toolhead XY at the dock |
-| `approach_x`, `approach_y` | Relative approach vector for attach |
+| `approach_x`, `approach_y` | Relative approach vector for attach (**entry XY = dock − approach** [− `approach2` on attach]). Sign matters so entry stays inside the machine envelope |
 | `detach_x`, `detach_y` | Relative slide to release magnets when docking |
+
+## Config validation (connect-time)
+
+At `klippy:connect`, after options resolve, the plugin runs pure checks and either **fails config** or logs **warnings** (always, not gated by `log_level`). Messages include a short fix. Full text is in `klippy.log`; if any warnings fired, the ready console note says `N config warning(s) — see klippy.log` (at `log_level: info`+).
+
+| Severity | Examples |
+|----------|----------|
+| **Error** (blocks load) | Missing/invalid required resolve fields; `bed_min_*` ≥ `bed_max_*`; speed/accel/`clearance_z` ≤ 0; `dock_retries` < 0; `park_after` without `park_x`/`park_y`; approach/detach XY length ≈ 0; approach+approach2 cancel (attach entry on dock); **full attach/detach path XY** (dock, entry, intermediate, release, clear from planners) or enabled staging XY outside **stepper** `position_min/max`; z_home (if `homing_override`) / accuracy (if `auto_attach` + move) / calibrate (if wrap + move) XY outside **bed_***; homing ownership conflicts; `adaptive_mesh` missing deps; `auto_attach` without session API; `dock_servo` servo object missing |
+| **Warning** (loads) | Umbilical coords equal safe XY; umbilical still on placeholder `15,15`; `disable_docking` or `homing_override: False` with virtual Z; `wrap_probe_calibrate: False` (intentional policy note — stock paper test leaves probe mounted); `travel_speed` > `[printer] max_velocity`; `clearance_z` below \|probe z_offset\| + pad |
+
+**Not** errors: dock outside the **printable bed** (frame docks are normal). Absolute reachability uses machine limits from `stepper_x` / `stepper_y`. Path checks use the same attach/detach waypoint planners as motion (release = dock + detach, clear = release − approach).
+
+**`disable_docking: True`:** path/vector/staging errors still apply. Geometry must stay load-valid so re-enabling docking does not surprise you; only attach/dock *motion* is skipped at runtime.
 
 ## Dock geometry (optional)
 

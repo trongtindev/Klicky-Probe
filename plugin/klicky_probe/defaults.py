@@ -7,6 +7,9 @@ from typing import Any, Dict, Optional
 
 from . import messages as msg
 from .constants import (
+    CONFIG_CLEARANCE_PROBE_PAD_MM,
+    DEFAULT_UMBILICAL_X,
+    DEFAULT_UMBILICAL_Y,
     LOG_LEVEL_DEBUG,
     LOG_LEVEL_DEFAULT,
     LOG_LEVEL_INFO,
@@ -235,7 +238,7 @@ def derive_z_home_xy(printer: PrinterSnapshot) -> tuple:
 
 def derive_clearance_z(printer: PrinterSnapshot, user_default: float = 25.0) -> float:
     # Keep a comfortable travel height; at least above typical probe stickout.
-    from_probe = abs(printer.probe_z_offset) + 5.0
+    from_probe = abs(printer.probe_z_offset) + CONFIG_CLEARANCE_PROBE_PAD_MM
     return max(user_default, from_probe)
 
 
@@ -337,8 +340,8 @@ def resolve_settings(
         park_y=_get(user, "park_y", None),
         park_z=_get(user, "park_z", None),
         umbilical=bool(_get(user, "umbilical", False)),
-        umbilical_x=float(_get(user, "umbilical_x", 15.0)),
-        umbilical_y=float(_get(user, "umbilical_y", 15.0)),
+        umbilical_x=float(_get(user, "umbilical_x", DEFAULT_UMBILICAL_X)),
+        umbilical_y=float(_get(user, "umbilical_y", DEFAULT_UMBILICAL_Y)),
         dock_servo=dock_servo,
         servo_name=servo_name,
         servo_deploy_angle=None if servo_deploy is None else float(servo_deploy),

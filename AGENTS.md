@@ -8,6 +8,7 @@ Klipper Python plugin for the Klicky magnetic probe. Hardware/STLs live under `f
 |---------|-------------------|
 | Shared constants / named defs | `plugin/klicky_probe/constants.py` (see **No hardcoding**; includes `KLICKY_PROBE_VERSION`) |
 | Parsed config keys + defaults | `plugin/klicky_probe/__init__.py` (`_parse_user_config`, hook templates) + `plugin/klicky_probe/defaults.py` (`resolve_settings`) |
+| Early config validation (errors + warnings) | `plugin/klicky_probe/config_validate.py` (`validate_klicky_config`) — wired at connect in `__init__.py` |
 | User-facing / log strings | `plugin/klicky_probe/messages.py` |
 | Full option reference | `docs/configuration.md` |
 | Comment/uncomment template | `config/sample-klicky.cfg` |

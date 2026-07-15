@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Optional, Protocol, Sequence, Tuple
 
 # Speed roles used by the executor
 SPEED_TRAVEL = "travel"
 SPEED_ATTACH = "attach"
 SPEED_DETACH = "detach"
 SPEED_Z = "z"
+
+# Dedupe absolute path XY for connect-time reachability (mm).
+_PATH_XY_DEDUP_DECIMALS = 3
 
 
 @dataclass(frozen=True)
@@ -30,6 +33,23 @@ class DockGeometry:
     @property
     def is_gantry_dock(self) -> bool:
         return self.dock_z is None
+
+
+class DockGeometrySource(Protocol):
+    """Settings-like object with dock geometry fields (KlickySettings, tests)."""
+
+    dock_x: float
+    dock_y: float
+    dock_z: Optional[float]
+    approach_x: float
+    approach_y: float
+    approach_z: float
+    detach_x: float
+    detach_y: float
+    detach_z: float
+    approach2_x: float
+    approach2_y: float
+    approach2_z: float
 
 
 @dataclass(frozen=True)
@@ -53,6 +73,24 @@ def _xyz(x: float, y: float, z: float, speed: str, label: str) -> Waypoint:
 
 def _z(z: float, speed: str, label: str) -> Waypoint:
     return Waypoint(x=None, y=None, z=z, speed=speed, label=label)
+
+
+def dock_geometry_from_settings(s: DockGeometrySource) -> DockGeometry:
+    """Build DockGeometry from resolved settings (Protocol; pure)."""
+    return DockGeometry(
+        dock_x=float(s.dock_x),
+        dock_y=float(s.dock_y),
+        dock_z=None if s.dock_z is None else float(s.dock_z),
+        approach_x=float(s.approach_x),
+        approach_y=float(s.approach_y),
+        approach_z=float(s.approach_z),
+        detach_x=float(s.detach_x),
+        detach_y=float(s.detach_y),
+        detach_z=float(s.detach_z),
+        approach2_x=float(s.approach2_x),
+        approach2_y=float(s.approach2_y),
+        approach2_z=float(s.approach2_z),
+    )
 
 
 def attach_entry_xy(geo: DockGeometry) -> Tuple[float, float]:
@@ -219,6 +257,26 @@ def detach_waypoints(geo: DockGeometry) -> List[Waypoint]:
     )
     # Retract dock in executor
     return w
+
+
+def absolute_path_xy(geo: DockGeometry) -> List[Tuple[str, float, float]]:
+    """Unique absolute XY targets from attach+detach plans (order preserved).
+
+    Includes dock, entry, intermediate, release, and clear — whatever the
+    planners emit. Used for connect-time reachability checks.
+    """
+    out: List[Tuple[str, float, float]] = []
+    seen: set[Tuple[float, float]] = set()
+    for wp in (*attach_waypoints(geo), *detach_waypoints(geo)):
+        if wp.x is None or wp.y is None:
+            continue
+        x, y = float(wp.x), float(wp.y)
+        key = (round(x, _PATH_XY_DEDUP_DECIMALS), round(y, _PATH_XY_DEDUP_DECIMALS))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append((wp.label or "path_xy", x, y))
+    return out
 
 
 def clearance_needed(current_z: Optional[float], clearance_z: float) -> bool:
