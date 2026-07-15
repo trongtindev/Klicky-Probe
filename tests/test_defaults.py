@@ -11,7 +11,6 @@ from klicky_probe.constants import (
     LOG_LEVEL_WARNING,
 )
 from klicky_probe.defaults import (
-    PrinterSnapshot,
     build_printer_snapshot_from_settings,
     endstop_backoff_target,
     resolve_log_level,

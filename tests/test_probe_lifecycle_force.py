@@ -2,14 +2,25 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock
 
 from klicky_probe.probe_lifecycle import ProbeLifecycle
 from klicky_probe.probe_state import ProbeAttachState, ProbeState
 
 
-def _host_for_lifecycle(*, attach_state, locked, triggered):
+@dataclass
+class LifecycleHarness:
+    """Test doubles for ProbeLifecycle; take only the fields you need."""
+
+    host: Any
+    state: Any
+    dock: Any
+
+
+def _host_for_lifecycle(*, attach_state, locked, triggered) -> LifecycleHarness:
     state = ProbeState(attach_state=attach_state, locked=locked)
     dock = MagicMock()
     host = SimpleNamespace(
@@ -26,45 +37,45 @@ def _host_for_lifecycle(*, attach_state, locked, triggered):
         _debug=MagicMock(),
         _verbose=MagicMock(),
     )
-    return host, state, dock
+    return LifecycleHarness(host, state, dock)
 
 
 def test_force_unlocks_even_when_already_docked():
     """force clears PROBE_LOCK even if motion is SKIP_ALREADY_DOCKED."""
     # Hardware reports docked (triggered=True on typical Klicky wiring).
-    host, state, dock = _host_for_lifecycle(
+    h = _host_for_lifecycle(
         attach_state=ProbeAttachState.DOCKED,
         locked=True,
         triggered=True,
     )
-    life = ProbeLifecycle(host)
+    life = ProbeLifecycle(h.host)
     life.detach_probe(force=True)
 
-    assert state.locked is False
-    dock.dock_with_retries.assert_not_called()
+    assert h.state.locked is False
+    h.dock.dock_with_retries.assert_not_called()
 
 
 def test_force_detach_attached_clears_lock_and_docks():
-    host, state, dock = _host_for_lifecycle(
+    h = _host_for_lifecycle(
         attach_state=ProbeAttachState.ATTACHED,
         locked=True,
         triggered=False,  # open switch ≈ attached
     )
-    life = ProbeLifecycle(host)
+    life = ProbeLifecycle(h.host)
     life.detach_probe(force=True)
 
-    assert state.locked is False
-    dock.dock_with_retries.assert_called_once()
+    assert h.state.locked is False
+    h.dock.dock_with_retries.assert_called_once()
 
 
 def test_detach_default_docks_when_attached():
-    host, state, dock = _host_for_lifecycle(
+    h = _host_for_lifecycle(
         attach_state=ProbeAttachState.ATTACHED,
         locked=False,
         triggered=False,
     )
-    life = ProbeLifecycle(host)
+    life = ProbeLifecycle(h.host)
     life.detach_probe()
 
-    dock.dock_with_retries.assert_called_once()
-    host._verbose.assert_called()
+    h.dock.dock_with_retries.assert_called_once()
+    h.host._verbose.assert_called()

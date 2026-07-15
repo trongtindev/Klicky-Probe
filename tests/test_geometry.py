@@ -2,7 +2,6 @@ from klicky_probe.geometry import (
     SPEED_ATTACH,
     SPEED_DETACH,
     SPEED_TRAVEL,
-    SPEED_Z,
     attach_entry_xy,
     attach_waypoints,
     clearance_needed,

@@ -1,0 +1,73 @@
+# Project metadata + dev tooling.
+# Runtime installs via plugin/install.sh into Klipper extras (not PyPI).
+# Dev: pip install -e ".[dev]"
+# Lint: ruff check plugin tests
+# Format section is editor-only; not enforced in CI (lint-only adoption).
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "klicky-probe"
+dynamic = ["version"]
+description = "Klipper Python plugin for the Klicky magnetic probe"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "GPL-3.0-or-later" }
+# Host runtime is Klipper; no pip runtime deps for the extra itself.
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff==0.15.21",
+]
+
+[tool.setuptools.packages.find]
+where = ["plugin"]
+include = ["klicky_probe*"]
+
+# Single source: plugin/klicky_probe/constants.py (KLICKY_PROBE_VERSION).
+[tool.setuptools.dynamic]
+version = { attr = "klicky_probe.constants.KLICKY_PROBE_VERSION" }
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+indent-width = 4
+src = ["plugin"]
+extend-exclude = ["files"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade (with ignores below)
+    "RUF", # Ruff-specific
+]
+ignore = [
+    "E501",  # soft line length (AGENTS 88–100)
+    "UP031", # keep % formatting (messages / Klipper-facing logs)
+    "UP006", # keep typing.List etc. (within-file consistency policy)
+    "UP007", # keep Optional[X] vs X | Y consistency policy
+    "UP035", # avoid forced typing import modernization churn
+    "UP045", # keep Optional[X] (same policy as UP007; Ruff split the rule)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# sys.path bootstrap before package imports (tests/conftest.py only).
+"tests/conftest.py" = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["klicky_probe"]
+combine-as-imports = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+skip-magic-trailing-comma = false

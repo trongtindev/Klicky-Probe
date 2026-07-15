@@ -102,7 +102,7 @@ class HomingExecutor:
             pmax = sect_require_float(sect, "position_max", section)
             pmin = sect_optional_float(sect, "position_min", 0.0)
         except ValueError as e:
-            raise h.gcode.error(str(e))
+            raise h.gcode.error(str(e)) from e
         pos = th.get_position()
         new = endstop_backoff_target(endstop, pmin, pmax, backoff)
         if axis == "x":

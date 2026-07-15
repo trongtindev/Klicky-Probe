@@ -34,7 +34,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Mapping, Optional, Union
 
-
 # Dock leave/lock params on any overridden command — strip before stock handlers.
 # Command-specific keys (e.g. PROBE_ACCURACY MOVE/X/Y) pass via strip extra=.
 KLICKY_GCODE_PARAMS = frozenset({"PROBE_LOCK", "DOCK"})

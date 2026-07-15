@@ -3,6 +3,8 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 from klicky_probe.command_wrappers import CommandWrappers
 from klicky_probe.dock_policy import DockIntent
 from klicky_probe.gcode_cmd import create_stock_gcmd
@@ -165,16 +167,13 @@ def test_run_probe_work_post_runs_if_exit_raises():
         ),
     )
     intent = DockIntent()
-    try:
+    with pytest.raises(RuntimeError, match="dock fail"):
         CommandWrappers(host)._run_probe_work(
             intent,
             "pre_leveling_gcode",
             "post_leveling_gcode",
             lambda: order.append("body"),
         )
-        assert False, "expected dock fail"
-    except RuntimeError as e:
-        assert "dock fail" in str(e)
     assert order == [
         "enter",
         "pre_leveling_gcode",

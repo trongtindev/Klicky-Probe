@@ -9,7 +9,7 @@ from klicky_probe.dock_executor import DockExecutor
 
 
 class _FakeKinematics:
-    def __init__(self, toolhead: "_FakeToolhead"):
+    def __init__(self, toolhead: _FakeToolhead):
         self._th = toolhead
 
     def clear_homing_state(self, axes: str) -> None:

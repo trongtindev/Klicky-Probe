@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Callable
 
+from . import messages as msg
 from .adaptive_mesh import merge_mesh_params
 from .dock_policy import DockIntent, parse_dock_intent, strip_klicky_params
 from .gcode_cmd import create_stock_gcmd
@@ -14,7 +15,6 @@ from .probe_accuracy import (
     resolve_probe_stage_xy,
 )
 from .probe_calibrate import ProbeCalibrateRunner
-from . import messages as msg
 
 
 class CommandWrappers:
@@ -249,7 +249,7 @@ class CommandWrappers:
                         default_y=s.probe_accuracy_y,
                     )
                 except ValueError as e:
-                    raise gcmd.error(str(e))
+                    raise gcmd.error(str(e)) from e
                 h._check_over_bed(xy=(tx, ty))
             else:
                 h._check_over_bed()

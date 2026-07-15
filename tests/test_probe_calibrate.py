@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from klicky_probe.probe_accuracy import PROBE_STAGING_PARAMS
 from klicky_probe.probe_calibrate import (
     PAPER_START_LIFT_MM,
     PROBE_CALIBRATE_STAGING_PARAMS,
@@ -15,7 +18,6 @@ from klicky_probe.probe_calibrate import (
     format_z_offset_result,
     paper_start_z,
 )
-from klicky_probe.probe_accuracy import PROBE_STAGING_PARAMS
 from klicky_probe.probe_session import SessionCounters
 from klicky_probe.probe_state import ProbeAttachState, ProbeState
 
@@ -76,7 +78,17 @@ class _FakeGcmd:
         self.infos.append(text)
 
 
-def _host(*, disable_docking=False, locked=False, calibrate_move=True):
+@dataclass
+class CalibrateHarness:
+    """Test doubles for ProbeCalibrateRunner; take only the fields you need."""
+
+    host: Any
+    th: Any
+    lifecycle: Any
+    dock: Any
+
+
+def _host(*, disable_docking=False, locked=False, calibrate_move=True) -> CalibrateHarness:
     th = _FakeToolhead()
     state = ProbeState(
         attach_state=ProbeAttachState.DOCKED,
@@ -120,11 +132,11 @@ def _host(*, disable_docking=False, locked=False, calibrate_move=True):
         _verbose=MagicMock(),
         _run_gcode_template=MagicMock(),
     )
-    return host, th, lifecycle, dock, probe
+    return CalibrateHarness(host, th, lifecycle, dock)
 
 
 def test_runner_order_attach_probe_dock_manual():
-    host, th, lifecycle, dock, probe = _host()
+    h = _host()
     # bed_* for formula; toolhead Z after sample is trigger height (stock).
     ppos = SimpleNamespace(bed_x=175.0, bed_y=150.0, bed_z=1.0)
     probe_mod = SimpleNamespace(run_single_probe=MagicMock(return_value=ppos))
@@ -136,27 +148,27 @@ def test_runner_order_attach_probe_dock_manual():
 
     def attach(**kwargs):
         order.append("attach")
-        host.state.attach_state = ProbeAttachState.ATTACHED
+        h.host.state.attach_state = ProbeAttachState.ATTACHED
 
     moves_after_detach = [0]
 
     def detach(**kwargs):
         order.append("detach_force=%s" % kwargs.get("force", False))
         assert kwargs.get("force") is True
-        host.state.attach_state = ProbeAttachState.DOCKED
+        h.host.state.attach_state = ProbeAttachState.DOCKED
         # Dock leaves toolhead high near dock (not over paper XY).
-        th.pos = [10.0, 300.0, 25.0]
-        moves_after_detach[0] = len(th.moves)
+        h.th.pos = [10.0, 300.0, 25.0]
+        moves_after_detach[0] = len(h.th.moves)
 
-    lifecycle.attach_probe.side_effect = attach
-    lifecycle.detach_probe.side_effect = detach
-    dock.ensure_clearance.side_effect = lambda: order.append("clearance")
+    h.lifecycle.attach_probe.side_effect = attach
+    h.lifecycle.detach_probe.side_effect = detach
+    h.dock.ensure_clearance.side_effect = lambda: order.append("clearance")
 
     def run_probe(_p, _g):
         # Hold must be open during sample so session end would not auto-dock.
-        assert host._session.hold_depth == 1
+        assert h.host._session.hold_depth == 1
         order.append("probe")
-        th.pos[2] = 2.5  # last-sample toolhead Z (stock get_position)
+        h.th.pos[2] = 2.5  # last-sample toolhead Z (stock get_position)
         return ppos
 
     probe_mod.run_single_probe.side_effect = run_probe
@@ -164,8 +176,8 @@ def test_runner_order_attach_probe_dock_manual():
     def manual_helper(printer, gcmd, finalize):
         order.append("manual")
         # ManualProbe starts after paper positioning.
-        assert th.pos[0] == 175.0 and th.pos[1] == 150.0
-        assert th.pos[2] == paper_start_z(2.5)
+        assert h.th.pos[0] == 175.0 and h.th.pos[1] == 150.0
+        assert h.th.pos[2] == paper_start_z(2.5)
         finalize(SimpleNamespace(bed_z=0.2))
 
     manual.ManualProbeHelper.side_effect = manual_helper
@@ -174,7 +186,7 @@ def test_runner_order_attach_probe_dock_manual():
         "klicky_probe.probe_calibrate.import_klipper_probe_modules",
         return_value=(probe_mod, manual),
     ):
-        ProbeCalibrateRunner(host).run(_FakeGcmd())
+        ProbeCalibrateRunner(h.host).run(_FakeGcmd())
 
     assert order == [
         "attach",
@@ -185,29 +197,29 @@ def test_runner_order_attach_probe_dock_manual():
         "manual",
     ]
     # Post-dock only (stage XY must not satisfy this slice).
-    post_dock = th.moves[moves_after_detach[0] :]
+    post_dock = h.th.moves[moves_after_detach[0] :]
     assert any(
         c[0] == 175.0 and c[1] == 150.0 and spd == 200.0
         for c, spd, _ in post_dock
     ), post_dock
     assert post_dock[-1][2][2] == paper_start_z(2.5)
     assert post_dock[-1][1] == 20.0  # z_speed for paper lower
-    host.printer.lookup_object.assert_called_with("configfile")
-    host.printer.lookup_object.return_value.set.assert_called_with(
+    h.host.printer.lookup_object.assert_called_with("configfile")
+    h.host.printer.lookup_object.return_value.set.assert_called_with(
         "probe", "z_offset", "3.300"
     )
-    assert host._session.hold_depth == 0
-    assert [c.args[0] for c in host._run_gcode_template.call_args_list] == [
+    assert h.host._session.hold_depth == 0
+    assert [c.args[0] for c in h.host._run_gcode_template.call_args_list] == [
         "pre_probe_calibrate_gcode",
         "post_probe_calibrate_gcode",
     ]
     assert all(
-        c.kwargs.get("soft") is True for c in host._run_gcode_template.call_args_list
+        c.kwargs.get("soft") is True for c in h.host._run_gcode_template.call_args_list
     )
 
 
 def test_runner_force_dock_even_if_locked():
-    host, th, lifecycle, dock, probe = _host(locked=True)
+    h = _host(locked=True)
     ppos = SimpleNamespace(bed_x=10.0, bed_y=20.0, bed_z=1.0)
     probe_mod = SimpleNamespace(run_single_probe=MagicMock(return_value=ppos))
     manual = SimpleNamespace(
@@ -219,13 +231,13 @@ def test_runner_force_dock_even_if_locked():
         "klicky_probe.probe_calibrate.import_klipper_probe_modules",
         return_value=(probe_mod, manual),
     ):
-        ProbeCalibrateRunner(host).run(_FakeGcmd({"MOVE": "0"}))
+        ProbeCalibrateRunner(h.host).run(_FakeGcmd({"MOVE": "0"}))
 
-    lifecycle.detach_probe.assert_called_with(force=True)
+    h.lifecycle.detach_probe.assert_called_with(force=True)
 
 
 def test_runner_error_still_force_docks():
-    host, th, lifecycle, dock, probe = _host()
+    h = _host()
     probe_mod = SimpleNamespace(
         run_single_probe=MagicMock(side_effect=RuntimeError("probe fail"))
     )
@@ -239,12 +251,12 @@ def test_runner_error_still_force_docks():
         return_value=(probe_mod, manual),
     ):
         with pytest.raises(RuntimeError, match="probe fail"):
-            ProbeCalibrateRunner(host).run(_FakeGcmd({"MOVE": "0"}))
+            ProbeCalibrateRunner(h.host).run(_FakeGcmd({"MOVE": "0"}))
 
-    lifecycle.detach_probe.assert_called_with(force=True)
-    assert host._session.hold_depth == 0
+    h.lifecycle.detach_probe.assert_called_with(force=True)
+    assert h.host._session.hold_depth == 0
     manual.ManualProbeHelper.assert_not_called()
-    assert [c.args[0] for c in host._run_gcode_template.call_args_list] == [
+    assert [c.args[0] for c in h.host._run_gcode_template.call_args_list] == [
         "pre_probe_calibrate_gcode",
         "post_probe_calibrate_gcode",
     ]
@@ -252,7 +264,7 @@ def test_runner_error_still_force_docks():
 
 def test_manual_probe_helper_ctor_failure_still_runs_post():
     """If ManualProbeHelper raises, post must still fire (paper never owns it)."""
-    host, th, lifecycle, dock, probe = _host()
+    h = _host()
     ppos = SimpleNamespace(bed_x=10.0, bed_y=20.0, bed_z=1.0)
     probe_mod = SimpleNamespace(run_single_probe=MagicMock(return_value=ppos))
     manual = SimpleNamespace(
@@ -265,9 +277,9 @@ def test_manual_probe_helper_ctor_failure_still_runs_post():
         return_value=(probe_mod, manual),
     ):
         with pytest.raises(RuntimeError, match="ui fail"):
-            ProbeCalibrateRunner(host).run(_FakeGcmd({"MOVE": "0"}))
+            ProbeCalibrateRunner(h.host).run(_FakeGcmd({"MOVE": "0"}))
 
-    assert [c.args[0] for c in host._run_gcode_template.call_args_list] == [
+    assert [c.args[0] for c in h.host._run_gcode_template.call_args_list] == [
         "pre_probe_calibrate_gcode",
         "post_probe_calibrate_gcode",
     ]

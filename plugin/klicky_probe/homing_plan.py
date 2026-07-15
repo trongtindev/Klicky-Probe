@@ -19,7 +19,7 @@ class HomingRequest:
     lock_probe: bool = False  # PROBE_LOCK (stay locked after leave)
 
     @classmethod
-    def from_params(cls, params: dict) -> "HomingRequest":
+    def from_params(cls, params: dict) -> HomingRequest:
         """Parse G28-like params: keys X/Y/Z present means home those; none = all."""
         has_x = "X" in params or "x" in params
         has_y = "Y" in params or "y" in params

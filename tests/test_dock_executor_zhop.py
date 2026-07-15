@@ -8,7 +8,7 @@ from klicky_probe.dock_executor import DockExecutor
 
 
 class _FakeKinematics:
-    def __init__(self, toolhead: "_FakeToolhead"):
+    def __init__(self, toolhead: _FakeToolhead):
         self._th = toolhead
 
     def clear_homing_state(self, axes: str) -> None:
@@ -95,7 +95,7 @@ def test_z_hop_unhomed_runs_once_while_still_unhomed():
     dock.z_hop_unhomed(25.0)
     dock.z_hop_unhomed(25.0)
 
-    # One set_position(Z=0) + one raise to clearance — not 3× stacking.
+    # One set_position(Z=0) + one raise to clearance — not 3x stacking.
     assert len(th.set_position_calls) == 1
     assert th.set_position_calls[0][0][2] == 0.0
     z_moves = [m for m in th.moves if m[0][2] is not None]
@@ -108,7 +108,7 @@ def test_ensure_clearance_does_not_stack_unhomed_hops():
     host, th = _host(clearance_z=25.0)
     dock = DockExecutor(host)
 
-    # Same path as G28 start hop + attach/detach ensure_clearance (×2).
+    # Same path as G28 start hop + attach/detach ensure_clearance (x2).
     dock.z_hop_unhomed(25.0)
     dock.ensure_clearance()
     dock.ensure_clearance()

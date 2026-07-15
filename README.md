@@ -65,7 +65,8 @@ Then add `[klicky_probe]` to `printer.cfg` (see [`config/sample-klicky.cfg`](con
 ### Tests
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"
+ruff check plugin tests
 pytest tests/ -q
 ```
 

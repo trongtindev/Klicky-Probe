@@ -7,14 +7,17 @@ from pathlib import Path
 
 import pytest
 
-# Allow imports of plugin package without install
-ROOT = Path(__file__).resolve().parents[1]
-PLUGIN = ROOT / "plugin"
-if str(PLUGIN) not in sys.path:
-    sys.path.insert(0, str(PLUGIN))
+# Prefer editable install (`pip install -e ".[dev]"`). Fallback: put plugin/ on
+# sys.path so pytest works without an install (local one-off runs).
+try:
+    import klicky_probe  # noqa: F401
+except ImportError:
+    _plugin = Path(__file__).resolve().parents[1] / "plugin"
+    if str(_plugin) not in sys.path:
+        sys.path.insert(0, str(_plugin))
 
-from klicky_probe.defaults import PrinterSnapshot  # noqa: E402
-from klicky_probe.geometry import DockGeometry  # noqa: E402
+from klicky_probe.defaults import PrinterSnapshot
+from klicky_probe.geometry import DockGeometry
 
 
 @pytest.fixture

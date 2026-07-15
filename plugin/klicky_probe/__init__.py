@@ -14,6 +14,7 @@ from . import messages as msg
 from .command_wrappers import CommandWrappers
 from .constants import (
     ANNOUNCE_CONSOLE_DELAY,
+    KLICKY_PROBE_VERSION,
     LOG_LEVEL_DEBUG,
     LOG_LEVEL_DEFAULT,
     LOG_LEVEL_VERBOSE,
@@ -33,9 +34,6 @@ from .klipper_version import MIN_KLIPPER_VERSION, check_min_klipper_version
 from .probe_lifecycle import ProbeLifecycle
 from .probe_session import SessionCounters
 from .probe_state import ProbeState
-
-# Plugin identity (shown at printer start)
-KLICKY_PROBE_VERSION = "1.0.0"
 
 
 def _config_has(config, name):
@@ -236,7 +234,7 @@ class KlickyProbe:
                 ),
             )
         except ValueError as e:
-            raise self.printer.config_error(str(e))
+            raise self.printer.config_error(str(e)) from e
 
     def _handle_connect(self):
         ver = self.printer.get_start_args().get("software_version", "?")
@@ -261,7 +259,7 @@ class KlickyProbe:
         try:
             self.settings = resolve_settings(self._user, snap)
         except ValueError as e:
-            raise self.printer.config_error(str(e))
+            raise self.printer.config_error(str(e)) from e
 
         err = validate_homing_conflicts(self.settings, snap)
         if err:

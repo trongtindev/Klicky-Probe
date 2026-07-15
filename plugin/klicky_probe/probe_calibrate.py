@@ -67,16 +67,20 @@ def import_klipper_probe_modules() -> Tuple[Any, Any]:
     parent package path is ``extras``.
     """
     try:
-        from extras import probe as probe_mod  # type: ignore
-        from extras import manual_probe  # type: ignore
+        from extras import (
+            manual_probe,  # type: ignore
+            probe as probe_mod,  # type: ignore
+        )
 
         return probe_mod, manual_probe
     except ImportError:
         pass
     # Relative parent (extras.klicky_probe → extras.probe)
     try:
-        from .. import probe as probe_mod  # type: ignore
-        from .. import manual_probe  # type: ignore
+        from .. import (
+            manual_probe,  # type: ignore
+            probe as probe_mod,  # type: ignore
+        )
 
         return probe_mod, manual_probe
     except ImportError as e:
@@ -114,7 +118,7 @@ class ProbeCalibrateRunner:
                     default_y=s.probe_calibrate_y,
                 )
             except ValueError as e:
-                raise gcmd.error(str(e))
+                raise gcmd.error(str(e)) from e
             h._check_over_bed(xy=(tx, ty))
         else:
             h._check_over_bed()
@@ -122,7 +126,7 @@ class ProbeCalibrateRunner:
         try:
             probe_mod, manual_probe = import_klipper_probe_modules()
         except ImportError as e:
-            raise gcmd.error(str(e))
+            raise gcmd.error(str(e)) from e
 
         manual_probe.verify_no_manual_probe(h.printer)
         stock_params = strip_klicky_params(params, PROBE_STAGING_PARAMS)

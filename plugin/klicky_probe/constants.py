@@ -15,6 +15,10 @@ touched.
 
 from __future__ import annotations
 
+# Plugin identity (console banner, logs). Single source for packaging too
+# (pyproject.toml dynamic version → this attr). Bump here only.
+KLICKY_PROBE_VERSION = "1.0.0"
+
 # Seconds after klippy:ready before console banner via gcode.respond_info.
 # Moonraker only calls gcode/subscribe_output after it observes READY (poll
 # interval ~0.25s); messages during the ready callback never reach Mainsail.

@@ -5,6 +5,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 import klicky_probe.messages as msg
 from klicky_probe import KlickyProbe
 
@@ -55,11 +57,8 @@ def test_hard_fail_reraises():
     host = _host_with_templates({"home_x_gcode": "G28 X"})
     host.gcode.run_script_from_command.side_effect = RuntimeError("home failed")
 
-    try:
+    with pytest.raises(RuntimeError, match="home failed"):
         host._run_gcode_template("home_x_gcode", soft=False)
-        assert False, "expected RuntimeError"
-    except RuntimeError as e:
-        assert "home failed" in str(e)
     host.gcode.respond_info.assert_not_called()
 
 

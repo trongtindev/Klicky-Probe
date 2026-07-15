@@ -132,6 +132,7 @@ sudo systemctl restart klipper
 ## Development tests
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"
+ruff check plugin tests
 pytest tests/ -q
 ```

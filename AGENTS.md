@@ -6,7 +6,7 @@ Klipper Python plugin for the Klicky magnetic probe. Hardware/STLs live under `f
 
 | Concern | Canonical location |
 |---------|-------------------|
-| Shared constants / named defs | `plugin/klicky_probe/constants.py` (see **No hardcoding**) |
+| Shared constants / named defs | `plugin/klicky_probe/constants.py` (see **No hardcoding**; includes `KLICKY_PROBE_VERSION`) |
 | Parsed config keys + defaults | `plugin/klicky_probe/__init__.py` (`_parse_user_config`, hook templates) + `plugin/klicky_probe/defaults.py` (`resolve_settings`) |
 | User-facing / log strings | `plugin/klicky_probe/messages.py` |
 | Full option reference | `docs/configuration.md` |
@@ -14,6 +14,7 @@ Klipper Python plugin for the Klicky magnetic probe. Hardware/STLs live under `f
 | G-codes, params, flows F1–F7 | `docs/gcodes.md` |
 | Install / Moonraker | `docs/install.md`, `plugin/install.sh`, `plugin/moonraker.snippet.conf` |
 | Overview + minimal sketch | `README.md` |
+| Mechanical lint (Ruff) + dev deps | `pyproject.toml` (`[tool.ruff]`, `[project.optional-dependencies] dev`) |
 
 Do **not** invent config keys that the parser does not accept. Prefer existing helpers, messages, and test fakes over one-off paths.
 
@@ -56,6 +57,7 @@ Do **not** invent config keys that the parser does not accept. Prefer existing h
 ### Before finishing a task
 
 - [ ] Code + tests green if behavior changed (`pytest tests/ -q` when relevant)
+- [ ] `ruff check plugin tests` clean when Python under `plugin/` or `tests/` changed
 - [ ] Docs/sample updated per checklist above
 - [ ] No contradiction between README sketch, sample active keys, and code defaults
 
@@ -67,11 +69,14 @@ plugin/install.sh      # install / uninstall
 config/sample-klicky.cfg
 docs/                  # install, configuration, gcodes
 tests/                 # pure-logic unit tests (no full Klipper)
+pyproject.toml         # package meta, dev deps (.[dev]), Ruff config
 ```
 
 ## Code style (forced)
 
-Match existing `plugin/klicky_probe/` and `tests/` style. There is **no** Black/Ruff config yet — these rules are the linter. New code that fights the house style is wrong even if it “works.”
+Match existing `plugin/klicky_probe/` and `tests/` style.
+
+**Ruff** is the automated linter (`ruff check plugin tests`). Config lives in `pyproject.toml` (`[tool.ruff]`). This document remains the source for architecture and product style (relative imports, `%` messages, pure vs I/O, constants). New code that fights either Ruff or these rules is wrong even if it “works.”
 
 ### When the user changes code style
 
@@ -91,10 +96,11 @@ Code-style edits without updating these rules are incomplete.
 | Indent | **4 spaces** (never tabs) |
 | Newlines | **LF** only |
 | Quotes | Prefer **double quotes** `"..."` for strings |
-| Line length | Soft wrap ~**88–100** columns; do not land multi-hundred-char lines |
+| Line length | Soft wrap ~**88–100** columns (`ruff` `line-length = 100`; `E501` not enforced) |
 | Trailing whitespace | None |
 | Final newline | Files end with a single newline |
 | Encoding | UTF-8 source |
+| Formatter | `ruff format` settings exist for editors; **not** enforced in CI — do not mass-format unless asked |
 
 ### Module boilerplate
 
@@ -274,15 +280,15 @@ Anti-patterns (reject):
 - Test names: `test_<behavior>_<condition>` snake_case.
 - Prefer assert on **returned plans/intents/settings**, not on private Klipper mocks, when logic is pure.
 - When behavior changes: update or add tests in the **same** change.
-- Run: `pip install -r requirements-dev.txt` then `pytest tests/ -q`.
+- Run: `pip install -e ".[dev]"` then `ruff check plugin tests` and `pytest tests/ -q`.
 
 ### What not to do
 
 - No new top-level package layout without need; keep the Klipper extra as `plugin/klicky_probe/`.
 - No drive-by reformat of unrelated files.
-- No Black/Ruff/isort mass reformat unless the user explicitly asks (would churn history).
-- No adding dependencies beyond `requirements-dev.txt` / runtime needs without asking.
-- No f-string conversion pass across `messages.py`.
+- No **`ruff format`** mass reformat unless the user explicitly asks (would churn history). Safe `ruff check --fix` on files you touch is expected when lint fails.
+- No adding dependencies beyond `pyproject.toml` `[project.optional-dependencies] dev` / runtime needs without asking.
+- No f-string conversion pass across `messages.py` (Ruff ignores `UP031` for `%` formatting).
 - No copying legacy macro-suite style (`klicky-variables.cfg`, `Attach_Probe` macro names) into the plugin.
 
 ### Style self-check before finishing code
@@ -296,13 +302,15 @@ Anti-patterns (reject):
 - [ ] `from __future__ import annotations` + module docstring on new plugin modules
 - [ ] Naming matches table above
 - [ ] If user requested a style change: **`AGENTS.md` Code style rules updated** to match
+- [ ] `ruff check plugin tests` clean when Python changed
 - [ ] Tests updated; `pytest tests/ -q` when behavior changed
 - [ ] Docs/sample checklist satisfied if options/commands/flows changed
 
 ## Tests
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"
+ruff check plugin tests
 pytest tests/ -q
 ```
 

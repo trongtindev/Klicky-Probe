@@ -321,26 +321,29 @@ def ready_announce_lines(
     features: Optional[Iterable[str]] = None,
 ) -> List[str]:
     """Full multi-line ready summary (banner + detail)."""
-    return [ready_banner(version)] + ready_detail_lines(
-        dock_x,
-        dock_y,
-        dock_z,
-        approach_x,
-        approach_y,
-        approach_z,
-        detach_x,
-        detach_y,
-        detach_z,
-        clearance_z,
-        travel_speed,
-        z_home_x,
-        z_home_y,
-        bed_min_x,
-        bed_max_x,
-        bed_min_y,
-        bed_max_y,
-        features,
-    )
+    return [
+        ready_banner(version),
+        *ready_detail_lines(
+            dock_x,
+            dock_y,
+            dock_z,
+            approach_x,
+            approach_y,
+            approach_z,
+            detach_x,
+            detach_y,
+            detach_z,
+            clearance_z,
+            travel_speed,
+            z_home_x,
+            z_home_y,
+            bed_min_x,
+            bed_max_x,
+            bed_min_y,
+            bed_max_y,
+            features,
+        ),
+    ]
 
 
 def log_line_for_ready(line: str) -> str:

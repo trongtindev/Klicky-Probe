@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from klicky_probe import messages as msg
 from klicky_probe import (
     _UI_MACRO_NAMES,
     _UiMacroShim,
+    messages as msg,
     register_ui_macro_shims,
 )
 
