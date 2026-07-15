@@ -71,6 +71,8 @@ pytest tests/ -q
 
 ### Minimal config sketch
 
+Same geometry and feature gates as [`config/sample-klicky.cfg`](config/sample-klicky.cfg) (comment/uncomment the rest there).
+
 ```ini
 [probe]
 pin: ^YOUR_PIN
@@ -82,13 +84,14 @@ z_offset: 0
 [klicky_probe]
 dock_x: 0
 dock_y: 300
-approach_x: 0
-approach_y: 30
-detach_x: -40
-detach_y: 0
+approach_x: 30
+approach_y: 0
+detach_x: 0
+detach_y: 40
 homing_override: True
 auto_attach: True
-adaptive_mesh: True
+wrap_probe_calibrate: True
+# adaptive_mesh: True   # optional; needs [bed_mesh] + [exclude_object]
 ```
 
 Remove old Klicky **macro** includes and, if `homing_override: True`, remove `[safe_z_home]` / `[homing_override]`.

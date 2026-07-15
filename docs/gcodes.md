@@ -25,7 +25,7 @@ Do **not** put Klicky attach XY motion in `[probe] activate_gcode` — Klipper f
 | End of a **standalone** probe op | **Dock** (default) | Probe off toolhead for free travel / print |
 | Before **physical Z** endstop home | **Dock first** | Probe body must not hit the bed |
 | Before **virtual Z** home | **Attach first** (session begin) | Probe *is* the Z endstop |
-| XY travel to/from dock | Raise Z to **`clearance_z` first**; optional **`umbilical`** early waypoint → (**`safe_xy_before_dock`** on detach only; default; coords bed center if unset) → L-path entry (`safe_dock_travel`, both modes). Full order: [configuration.md](configuration.md#dock-path-order-umbilical--safe-xy--safe_dock_travel) | Cable routing + avoid snagging probe on nozzle clean / brushes |
+| XY travel to/from dock | Raise Z to **`clearance_z` first**; optional **`umbilical`** early waypoint → (**`safe_xy_before_dock`** on detach only; default; coords bed center if unset) → L-path entry (`safe_dock_travel`, both modes). Full order: [configuration.md](configuration.md#dock-path-umbilical--safe-xy--safe_dock_travel) | Cable routing + avoid snagging probe on nozzle clean / brushes |
 | Multi-step calibrate / start | **Leave attached** via params | Avoid dock↔attach thrash |
 | After **last** probe step | **Dock once** | Clear nozzle path |
 

@@ -4,6 +4,8 @@ Section name: **`[klicky_probe]`**
 
 Rule: **if you do not set an option, it is derived from existing Klipper config** (printer max velocity/accel, stepper bed size, probe offsets, etc.). Declaring a key overrides the default.
 
+Comment/uncomment template: [`config/sample-klicky.cfg`](../config/sample-klicky.cfg).
+
 ## Required
 
 | Option | Description |
@@ -19,6 +21,16 @@ Rule: **if you do not set an option, it is derived from existing Klipper config*
 | `dock_z` | *omit* | Absolute dock Z. **Omit** for gantry/frame mounts |
 | `approach_z`, `detach_z` | `0` | Z components of approach/detach |
 | `approach2_x/y/z` | `0` | Intermediate approach (side docks / Euclid-style) |
+
+### Coordinate frame (dock / approach / park / umbilical / safe XY)
+
+All dock geometry and staging waypoints (`dock_*`, `approach_*`, `park_*`, `umbilical_*`, `safe_xy_*`) are in the **toolhead / machine frame** (same as `toolhead.get_position()`). Moves use `toolhead.manual_move`, which does **not** pass through G-code transforms such as `[skew_correction]`.
+
+That is intentional: the physical dock does not move when a skew profile loads. Old macro suites used `G0`/`G1` and therefore applied skew to dock targets (upstream issue #287). Calibrate dock and staging XY from toolhead position, not from skewed gcode coordinates.
+
+### Servo docks / extra entry gap
+
+Increase `approach_x` / `approach_y` (and optionally `approach2_*`) so the entry staging point sits far enough for the servo arm to deploy before the final attach move.
 
 ## Features (how each changes the flow)
 
@@ -76,21 +88,22 @@ When `adaptive_mesh: True`, **`[exclude_object]` is required** at config load (K
 | `bed_min_x` / `bed_min_y` | `stepper_x/y.position_min` (Klipper default `0` if omitted) |
 | `bed_max_x` / `bed_max_y` | `stepper_x/y.position_max` (**required** in stepper config) |
 | `z_home_x` / `z_home_y` | bed center − probe x/y_offset (toolhead XY for Z home **after** attach; Klipper probes at current XY) |
-| `probe_accuracy_move` | `True` — when the `PROBE_ACCURACY` wrap runs (`auto_attach`), move to a target toolhead XY before stock samples. `False` = stock “probe here” (still attaches/docks). Override per call with `MOVE=0` / `MOVE=1`. |
-| `probe_accuracy_x` / `probe_accuracy_y` | same **formula** as default `z_home_*` (bed center − probe offsets), but **independent** of `z_home_*` overrides. Set only if accuracy should use a different point than derived center. Runtime: `PROBE_ACCURACY X=… Y=…`. |
-| `probe_calibrate_move` | `True` — when `wrap_probe_calibrate`, stage toolhead XY before the automatic probe sample. Then **dock**, then nozzle paper test. `MOVE=0` / `MOVE=1` override per call. Stage + post-dock XY use `travel_speed`; Z uses `z_speed`. Paper ManualProbe starts at toolhead Z after the sample + 5 mm (stock lift), not `clearance_z`. Probe descent still uses Klipper `[probe] speed`. |
-| `probe_calibrate_x` / `probe_calibrate_y` | same derive formula as `z_home_*` default; **independent** of `z_home_*` and `probe_accuracy_*` overrides. Runtime: `PROBE_CALIBRATE X=… Y=…`. |
 | `endstop_backoff_x/y` | `10` |
 | `home_first` | `auto` (`auto` \| `x` \| `y`) |
 | `dock_retries` | `0` |
-| `safe_dock_travel` | `True` — L-path staging to dock entry (avoids diagonal crash into dock). See [Dock path order](#dock-path-order-umbilical--safe-xy--safe_dock_travel). |
-| `safe_xy_before_dock` | `True` — on **detach** only, move to `safe_xy_x`/`safe_xy_y` before dock approach (avoids sweeping nozzle clean / purge brush with probe mounted) |
-| `safe_xy_x` / `safe_xy_y` | bed center — omit → center of `bed_min/max` |
-| `umbilical` | `False` — if true, move to `(umbilical_x, umbilical_y, clearance_z)` before safe XY / dock entry (both attach and detach) |
-| `umbilical_x` / `umbilical_y` | `15` / `15` — toolhead XY for that early waypoint; set a real free point on your machine (`15,15` is only a placeholder default) |
 | `reseat_before_z_home` | `True` — virtual Z: if probe already “attached”, dock then re-attach before home |
 
-### Dock path order (umbilical / safe XY / safe_dock_travel)
+## Dock path (umbilical / safe XY / safe_dock_travel)
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `safe_dock_travel` | `True` | L-path staging to dock entry (avoids diagonal crash into dock) |
+| `safe_xy_before_dock` | `True` | On **detach** only, move to `safe_xy_x`/`safe_xy_y` before dock approach (avoids sweeping nozzle clean / purge brush with probe mounted) |
+| `safe_xy_x` / `safe_xy_y` | bed center | Omit → center of `bed_min/max` |
+| `umbilical` | `False` | If true, move to `(umbilical_x, umbilical_y, clearance_z)` before safe XY / dock entry (both attach and detach) |
+| `umbilical_x` / `umbilical_y` | `15` / `15` | Toolhead XY for that early waypoint; set a real free point on your machine (`15,15` is only a placeholder default) |
+
+### Path order
 
 Attach and detach always raise Z to `clearance_z` first. Optional staging then runs in this order (each step is independent — no config conflict):
 
@@ -132,22 +145,22 @@ When `umbilical: True`, attach/detach first move to `(umbilical_x, umbilical_y)`
 | Would set umbilical coords equal to safe XY | Use **one** only |
 | Open path, no cable issue | Leave `umbilical: False` |
 
-### Coordinate frame (dock / approach / park / umbilical / safe XY)
+## Probe staging (accuracy / calibrate)
 
-All dock geometry and staging waypoints (`dock_*`, `approach_*`, `park_*`, `umbilical_*`, `safe_xy_*`) are in the **toolhead / machine frame** (same as `toolhead.get_position()`). Moves use `toolhead.manual_move`, which does **not** pass through G-code transforms such as `[skew_correction]`.
+Defaults use the same **formula** as default `z_home_*` (bed center − probe offsets), but each pair is **independent** — overriding `z_home_x/y` does not move accuracy or calibrate targets.
 
-That is intentional: the physical dock does not move when a skew profile loads. Old macro suites used `G0`/`G1` and therefore applied skew to dock targets (upstream issue #287). Calibrate dock and staging XY from toolhead position, not from skewed gcode coordinates.
-
-### Servo docks / extra entry gap
-
-Increase `approach_x` / `approach_y` (and optionally `approach2_*`) so the entry staging point sits far enough for the servo arm to deploy before the final attach move.
+| Option | Default | Description |
+|--------|---------|-------------|
+| `probe_accuracy_move` | `True` | When the `PROBE_ACCURACY` wrap runs (`auto_attach`), move to a target toolhead XY before stock samples. `False` = stock “probe here” (still attaches/docks). Override per call with `MOVE=0` / `MOVE=1`. |
+| `probe_accuracy_x` / `probe_accuracy_y` | derived bed center − probe offsets | Set only if accuracy should use a different point than derived center. Runtime: `PROBE_ACCURACY X=… Y=…`. |
+| `probe_calibrate_move` | `True` | When `wrap_probe_calibrate`, stage toolhead XY before the automatic probe sample. Then **dock**, then nozzle paper test. `MOVE=0` / `MOVE=1` override per call. Stage + post-dock XY use `travel_speed`; Z uses `z_speed`. Paper ManualProbe starts at toolhead Z after the sample + 5 mm (stock lift), not `clearance_z`. Probe descent still uses Klipper `[probe] speed`. |
+| `probe_calibrate_x` / `probe_calibrate_y` | derived bed center − probe offsets | Independent of `z_home_*` and `probe_accuracy_*` overrides. Runtime: `PROBE_CALIBRATE X=… Y=…`. |
 
 ## Optional behaviors
 
 | Option | Description |
 |--------|-------------|
 | `park_after` + `park_x/y/z` | Park after attach/dock/home (`park_z` omit = keep Z) |
-| `umbilical` + `umbilical_x/y` | Early waypoint before dock path (defaults and when-to-use above) |
 | `dock_servo` + `servo_name` + angles + `servo_delay_ms` | Servo-deployed dock |
 
 ## User gcode hooks
