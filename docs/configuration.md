@@ -70,29 +70,60 @@ Requires `[bed_mesh]`. When `adaptive_mesh: True`, **`[exclude_object]` is requi
 | `endstop_backoff_x/y` | `10` |
 | `home_first` | `auto` (`auto` \| `x` \| `y`) |
 | `dock_retries` | `0` |
-| `safe_dock_travel` | `True` — L-path staging to dock entry (avoids diagonal crash into dock) |
+| `safe_dock_travel` | `True` — L-path staging to dock entry (avoids diagonal crash into dock). See [Dock path order](#dock-path-order-umbilical--safe-xy--safe_dock_travel). |
 | `safe_xy_before_dock` | `True` — on **detach** only, move to `safe_xy_x`/`safe_xy_y` before dock approach (avoids sweeping nozzle clean / purge brush with probe mounted) |
 | `safe_xy_x` / `safe_xy_y` | bed center — omit → center of `bed_min/max` |
+| `umbilical` | `False` — if true, move to `(umbilical_x, umbilical_y, clearance_z)` before safe XY / dock entry (both attach and detach) |
+| `umbilical_x` / `umbilical_y` | `15` / `15` — toolhead XY for that early waypoint; set a real free point on your machine (`15,15` is only a placeholder default) |
 | `reseat_before_z_home` | `True` — virtual Z: if probe already “attached”, dock then re-attach before home |
+
+### Dock path order (umbilical / safe XY / safe_dock_travel)
+
+Attach and detach always raise Z to `clearance_z` first. Optional staging then runs in this order (each step is independent — no config conflict):
+
+```
+clearance_z
+  → umbilical (if on)              # early fixed XY — cable / corner routing
+  → safe_xy (if on; detach only)   # mid staging — avoid nozzle clean with probe on head
+  → L-path to entry (safe_dock_travel, default on)
+  → attach/detach body
+```
+
+| Option | Default | Role | When to enable |
+|--------|---------|------|----------------|
+| `umbilical` | off | Early fixed XY at `clearance_z` | Probe/toolhead **cable** snags if you go straight from the print area; need a corner/front waypoint first |
+| `safe_xy_before_dock` | on | Mid staging on **detach** (omit coords → bed center) | **Nozzle clean** / purge brush / wipe on the path while the probe is mounted |
+| `safe_dock_travel` | on | Final axis-aligned path into dock entry | Keep on unless you intentionally want legacy **diagonal** entry |
+
+They do **not** replace each other: umbilical is cable routing, safe XY is obstacle clearance with probe on, L-path is final dock geometry. If you would set umbilical and safe XY to the **same** point, enable only one — a double move is wasteful.
 
 ### Safe XY before dock (when to use)
 
-Attach/detach always raise Z to `clearance_z` first, then may still travel **horizontally** from the current XY toward the dock. On **detach** (probe on the toolhead), if that path crosses a **nozzle cleaner**, purge brush, or similar fixed obstacle, the probe can be knocked off the mount. Safe XY staging runs only on detach; attach travels empty and skips it.
+On **detach**, horizontal travel toward the dock can cross a **nozzle cleaner**, purge brush, or similar fixed obstacle and knock the probe off the mount. Safe XY staging runs only on detach; attach travels empty and skips it.
 
 | Situation | Recommendation |
 |-----------|----------------|
 | Cleaner / brush / wipe on the path from print area → dock | Keep **`safe_xy_before_dock: True`** (default). Omit `safe_xy_x`/`safe_xy_y` for bed center, or set both explicitly. |
 | Bed center is still not clear | Set custom `safe_xy_x` / `safe_xy_y` clear of the obstacle. |
 | Open bed, no fixed XY obstacles, want shortest path | `safe_xy_before_dock: False` |
-| Already using `umbilical` | Both OK; order is umbilical → safe XY (detach) → dock entry |
+| Already using `umbilical` | Both OK if the points differ; order is umbilical → safe XY (detach) → dock entry |
 
-This is **not** the same as `safe_dock_travel` (L-path only for the final approach to dock entry) or `umbilical` (cable staging).
+### Umbilical (when to use)
 
-### Coordinate frame (dock / approach / park)
+When `umbilical: True`, attach/detach first move to `(umbilical_x, umbilical_y)` at `clearance_z` and `travel_speed`, then continue with safe XY (detach) and dock entry. Defaults `15,15` are **not** machine-specific — pick a free corner that keeps the cable clear.
 
-All dock geometry is in the **toolhead / machine frame** (same as `toolhead.get_position()`). Moves use `toolhead.manual_move`, which does **not** pass through G-code transforms such as `[skew_correction]`.
+| Situation | Recommendation |
+|-----------|----------------|
+| Cable/umbilical pulls or snags near a rear/side dock | `umbilical: True` + set `umbilical_x` / `umbilical_y` to a free corner |
+| Only need to avoid nozzle clean / brush | Keep `safe_xy_before_dock`; leave **`umbilical: False`** (default) |
+| Would set umbilical coords equal to safe XY | Use **one** only |
+| Open path, no cable issue | Leave `umbilical: False` |
 
-That is intentional: the physical dock does not move when a skew profile loads. Old macro suites used `G0`/`G1` and therefore applied skew to dock targets (upstream issue #287). Calibrate `dock_*` / `approach_*` from toolhead position, not from skewed gcode coordinates.
+### Coordinate frame (dock / approach / park / umbilical / safe XY)
+
+All dock geometry and staging waypoints (`dock_*`, `approach_*`, `park_*`, `umbilical_*`, `safe_xy_*`) are in the **toolhead / machine frame** (same as `toolhead.get_position()`). Moves use `toolhead.manual_move`, which does **not** pass through G-code transforms such as `[skew_correction]`.
+
+That is intentional: the physical dock does not move when a skew profile loads. Old macro suites used `G0`/`G1` and therefore applied skew to dock targets (upstream issue #287). Calibrate dock and staging XY from toolhead position, not from skewed gcode coordinates.
 
 ### Servo docks / extra entry gap
 
@@ -103,7 +134,7 @@ Increase `approach_x` / `approach_y` (and optionally `approach2_*`) so the entry
 | Option | Description |
 |--------|-------------|
 | `park_after` + `park_x/y/z` | Park after attach/dock/home (`park_z` omit = keep Z) |
-| `umbilical` + `umbilical_x/y` | Extra path before dock moves |
+| `umbilical` + `umbilical_x/y` | Early waypoint before dock path (defaults and when-to-use above) |
 | `dock_servo` + `servo_name` + angles + `servo_delay_ms` | Servo-deployed dock |
 | `pre_attach_gcode` / `post_attach_gcode` / `pre_detach_gcode` / `post_detach_gcode` | Custom snippets |
 | `home_x_gcode` / `home_y_gcode` | Custom axis homing (sensorless, etc.) |
