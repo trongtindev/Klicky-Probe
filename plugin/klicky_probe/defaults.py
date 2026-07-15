@@ -19,7 +19,7 @@ class PrinterSnapshot:
     probe_x_offset: float = 0.0
     probe_y_offset: float = 0.0
     probe_z_offset: float = 0.0
-    probe_speed: float = 5.0
+    probe_speed: float = 80.0
     max_velocity: float = 300.0
     max_accel: float = 3000.0
     z_virtual_endstop: bool = False
@@ -182,7 +182,6 @@ def resolve_settings(
             min(float(printer.max_velocity), DEFAULT_TRAVEL_SPEED_CAP),
         )
     )
-    probe_speed = float(printer.probe_speed) if printer.probe_speed else 5.0
 
     bed_min_x = float(_get(user, "bed_min_x", printer.stepper_x_position_min))
     bed_min_y = float(_get(user, "bed_min_y", printer.stepper_y_position_min))

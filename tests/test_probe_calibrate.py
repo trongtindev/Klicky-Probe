@@ -82,7 +82,7 @@ def _host(*, disable_docking=False, locked=False, calibrate_move=True):
     probe.get_offsets.return_value = (0.0, -25.0, 2.5)
     probe.get_probe_params.return_value = {
         "lift_speed": 5.0,
-        "probe_speed": 5.0,
+        "probe_speed": 80.0,
     }
     probe.get_status.return_value = {"name": "probe"}
     gcode = MagicMock()

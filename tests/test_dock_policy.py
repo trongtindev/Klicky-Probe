@@ -124,7 +124,7 @@ def test_strip_klicky_params_with_accuracy_extra():
             "X": "100",
             "Y": "120",
             "SAMPLES": "10",
-            "PROBE_SPEED": "5",
+            "PROBE_SPEED": "80",
         },
         PROBE_ACCURACY_STAGING_PARAMS,
     )
@@ -134,7 +134,7 @@ def test_strip_klicky_params_with_accuracy_extra():
     assert "X" not in upper
     assert "Y" not in upper
     assert out["SAMPLES"] == "10"
-    assert out["PROBE_SPEED"] == "5"
+    assert out["PROBE_SPEED"] == "80"
 
 
 def test_g28_dock_zero_leave_attached():
