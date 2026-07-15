@@ -12,6 +12,7 @@ import logging
 
 from . import messages as msg
 from .command_wrappers import CommandWrappers
+from .constants import ANNOUNCE_CONSOLE_DELAY
 from .defaults import (
     PrinterSnapshot,
     build_printer_snapshot_from_settings,
@@ -110,6 +111,8 @@ class KlickyProbe:
         self._gcode_templates = {}
         self._skew_frame_logged = False
         self._ready_features = []  # feature labels installed at ready
+        # Lines deferred for gcode console (Moonraker subscribes post-READY).
+        self._pending_ready_console_lines = None
 
         self.dock = DockExecutor(self)
         self.lifecycle = ProbeLifecycle(self)
@@ -357,15 +360,14 @@ class KlickyProbe:
 
         self._ready_features = features
         self._maybe_log_skew_frame()
-        self._announce_ready()
+        self._schedule_ready_announce()
 
-    def _announce_ready(self):
-        """Always log + console-report init summary when printer is ready."""
+    def _ready_banner_lines(self):
+        """Build multi-line ready summary from resolved settings + features."""
         s = self.settings
         if s is None:
-            return
-
-        lines = msg.ready_announce_lines(
+            return []
+        return msg.ready_announce_lines(
             KLICKY_PROBE_VERSION,
             s.dock_x,
             s.dock_y,
@@ -386,12 +388,37 @@ class KlickyProbe:
             s.bed_max_y,
             self._ready_features,
         )
+
+    def _schedule_ready_announce(self) -> None:
+        """Log banner now; defer console until Moonraker can receive it.
+
+        Moonraker only registers gcode/subscribe_output after it observes READY
+        (poll ~0.25s). respond_info inside the klippy:ready callback is dropped
+        before any web UI client is subscribed — so console uses a one-shot
+        reactor timer (same pattern as extras that register_timer + NEVER).
+        """
+        lines = self._ready_banner_lines()
         for line in lines:
             logging.info("%s", msg.log_line_for_ready(line))
+        if not lines:
+            return
+        self._pending_ready_console_lines = lines
+        wake = self.reactor.monotonic() + ANNOUNCE_CONSOLE_DELAY
+        self.reactor.register_timer(self._announce_ready_console_timer, wake)
+
+    def _announce_ready_console_timer(self, eventtime):
+        """One-shot: emit deferred ready banner to gcode console."""
+        lines = self._pending_ready_console_lines or ()
+        self._pending_ready_console_lines = None
+        for line in lines:
             try:
-                self.gcode.respond_info(line)
+                # Already in klippy.log from _schedule_ready_announce.
+                self.gcode.respond_info(line, log=False)
             except Exception:
-                pass
+                logging.debug(
+                    "klicky_probe: ready console emit failed", exc_info=True
+                )
+        return self.reactor.NEVER
 
     def _maybe_log_skew_frame(self):
         """Document toolhead-frame dock policy when skew is active (#287)."""

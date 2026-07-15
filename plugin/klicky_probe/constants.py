@@ -14,3 +14,8 @@ touched.
 """
 
 from __future__ import annotations
+
+# Seconds after klippy:ready before console banner via gcode.respond_info.
+# Moonraker only calls gcode/subscribe_output after it observes READY (poll
+# interval ~0.25s); messages during the ready callback never reach Mainsail.
+ANNOUNCE_CONSOLE_DELAY = 1.0
