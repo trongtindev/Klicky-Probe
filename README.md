@@ -56,6 +56,8 @@ cd Klicky-Probe
 ./plugin/install.sh
 ```
 
+Registers the plugin in Klipper extras and adds a Moonraker update-manager section when `moonraker.conf` is found. Uninstall: `./plugin/install.sh -u`.
+
 Then add `[klicky_probe]` to `printer.cfg` (see [`config/sample-klicky.cfg`](config/sample-klicky.cfg)).
 
 **Docs:** [Install](docs/install.md) · [Configuration](docs/configuration.md) · [G-codes & flows](docs/gcodes.md)

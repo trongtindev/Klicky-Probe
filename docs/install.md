@@ -15,16 +15,43 @@ cd Klicky-Probe
 ./plugin/install.sh
 ```
 
-The install script symlinks `plugin/klicky_probe` into `$KLIPPER_PATH/klippy/extras/klicky_probe` (default `~/klipper`) and restarts Klipper when possible.
+The install script:
 
-Non-default Klipper location:
+1. Symlinks `plugin/klicky_probe` into `$KLIPPER_PATH/klippy/extras/klicky_probe` (default `~/klipper`)
+2. Registers `[update_manager klicky_probe]` in `moonraker.conf` when found. A section is **managed** only when the installer marker comment sits immediately above it (blank lines allowed). Managed sections get path/origin rewritten to the current clone; sections without that adjacent marker are treated as hand-edited and left alone
+3. Restarts Klipper when the service is active; restarts Moonraker only when the conf was just modified
+
+Non-default paths:
 
 ```bash
 export KLIPPER_PATH=/home/pi/klipper
 ./plugin/install.sh
 # or:
+./plugin/install.sh -k /home/pi/klipper
 ./plugin/install.sh /home/pi/klipper
+
+# Custom moonraker.conf:
+./plugin/install.sh -m ~/printer_data/config/moonraker.conf
 ```
+
+### Installer flags
+
+```text
+Usage: install.sh [-k KLIPPER_PATH] [-m MOONRAKER_CONF] [-u] [-h] [KLIPPER_PATH]
+
+  -k PATH   Klipper root (default: $KLIPPER_PATH or ~/klipper)
+  -m PATH   moonraker.conf path (default: auto-detect)
+  -u        Uninstall (extras link + Moonraker update_manager section)
+  -h        Help
+```
+
+Moonraker conf is searched in order: `$MOONRAKER_CONF` / `-m`, then:
+
+- `~/printer_data/config/moonraker.conf`
+- `~/klipper_config/moonraker.conf`
+- `~/moonraker.conf`
+
+If no conf is found, install still succeeds; add the update block manually (below).
 
 ## printer.cfg
 
@@ -62,7 +89,9 @@ Full override guide and flows **F1–F7**: [gcodes.md](gcodes.md).
 
 ## Moonraker update manager
 
-Copy the block from `plugin/moonraker.snippet.conf` into `moonraker.conf`, adjusting `path` and `origin` to your clone.
+`./plugin/install.sh` adds this automatically when it finds `moonraker.conf`.
+
+Manual fallback — copy the block from `plugin/moonraker.snippet.conf` into `moonraker.conf`, adjusting `path` and `origin` to your clone, then restart Moonraker.
 
 ## Adaptive bed mesh
 
@@ -80,8 +109,21 @@ Run mesh during print start after objects are defined.
 ## Uninstall
 
 ```bash
+./plugin/install.sh -u
+# optional path overrides:
+./plugin/install.sh -u -k /path/to/klipper -m /path/to/moonraker.conf
+```
+
+This removes:
+
+- `$KLIPPER_PATH/klippy/extras/klicky_probe` (symlink or copy)
+- `[update_manager klicky_probe]` from `moonraker.conf` (when present)
+
+Then remove `[klicky_probe]` from `printer.cfg` and restart if services were not restarted.
+
+```bash
+# manual fallback if needed:
 rm -rf ~/klipper/klippy/extras/klicky_probe
-# remove [klicky_probe] from printer.cfg
 sudo systemctl restart klipper
 ```
 
