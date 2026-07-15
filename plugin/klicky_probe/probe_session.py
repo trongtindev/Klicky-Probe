@@ -3,11 +3,23 @@ Probe session / command hold counters (pure logic).
 
 Klipper (v0.13+) uses start_probe_session / end_probe_session — not multi_probe_*.
 Klicky attaches on outermost session begin and may dock on outermost session end.
+
+``hold_depth`` (begin_hold / end_hold)
+--------------------------------------
+Primary use: ``DOCK=0`` leave-attached across a command — session end must not
+auto-dock while hold is open.
+
+Also used by outer owners that need a **single** dock decision after a nested
+probe session (e.g. PROBE_CALIBRATE: suppress session auto-dock during
+``run_single_probe``, then force-dock once before paper test). Hold means
+"suppress session auto-dock"; it is not "leave probe attached for paper."
 """
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import Iterator
 
 
 def should_detach_on_session_end(*, locked: bool, hold_depth: int) -> bool:
@@ -17,7 +29,7 @@ def should_detach_on_session_end(*, locked: bool, hold_depth: int) -> bool:
 
 @dataclass
 class SessionCounters:
-    """Tracks nested probe sessions and DOCK=0 command holds."""
+    """Tracks nested probe sessions and command holds (see module docstring)."""
 
     session_depth: int = 0
     hold_depth: int = 0
@@ -42,7 +54,7 @@ class SessionCounters:
         return self.session_depth == 0
 
     def begin_hold(self) -> None:
-        """Command-level leave (DOCK=0): block auto-dock until end_hold."""
+        """Open a hold: block session auto-dock until matching end_hold."""
         self.hold_depth += 1
 
     def end_hold(self) -> None:
@@ -50,3 +62,13 @@ class SessionCounters:
 
     def reset_holds(self) -> None:
         self.hold_depth = 0
+
+    @contextmanager
+    def holding(self) -> Iterator[None]:
+        """Context manager: begin_hold on enter, end_hold on exit (always)."""
+        self.begin_hold()
+        try:
+            yield
+        finally:
+            self.end_hold()
+

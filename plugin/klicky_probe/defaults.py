@@ -85,6 +85,10 @@ class KlickySettings:
     probe_accuracy_move: bool
     probe_accuracy_x: float
     probe_accuracy_y: float
+    # PROBE_CALIBRATE staging (independent of z_home_* / probe_accuracy_*; same formula)
+    probe_calibrate_move: bool
+    probe_calibrate_x: float
+    probe_calibrate_y: float
 
     # Optional behaviors
     park_after: bool
@@ -235,6 +239,10 @@ def resolve_settings(
         probe_accuracy_move=bool(_get(user, "probe_accuracy_move", True)),
         probe_accuracy_x=float(_get(user, "probe_accuracy_x", z_home_x_d)),
         probe_accuracy_y=float(_get(user, "probe_accuracy_y", z_home_y_d)),
+        # Same derive formula; independent of z_home_* and probe_accuracy_* overrides.
+        probe_calibrate_move=bool(_get(user, "probe_calibrate_move", True)),
+        probe_calibrate_x=float(_get(user, "probe_calibrate_x", z_home_x_d)),
+        probe_calibrate_y=float(_get(user, "probe_calibrate_y", z_home_y_d)),
         park_after=bool(_get(user, "park_after", False)),
         park_x=_get(user, "park_x", None),
         park_y=_get(user, "park_y", None),

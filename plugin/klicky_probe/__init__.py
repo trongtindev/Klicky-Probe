@@ -157,6 +157,7 @@ class KlickyProbe:
             "umbilical_x", "umbilical_y",
             "safe_xy_x", "safe_xy_y",
             "probe_accuracy_x", "probe_accuracy_y",
+            "probe_calibrate_x", "probe_calibrate_y",
             "servo_deploy_angle", "servo_retract_angle", "servo_delay_ms",
         )
         for name in optional_floats:
@@ -171,6 +172,7 @@ class KlickyProbe:
             "umbilical", "dock_servo", "safe_dock_travel", "reseat_before_z_home",
             "safe_xy_before_dock",
             "probe_accuracy_move",
+            "probe_calibrate_move",
         )
         for name in optional_bools:
             if _config_has(config, name):

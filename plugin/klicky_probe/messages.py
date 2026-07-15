@@ -522,13 +522,24 @@ def home_xyz_before_probe_op():
 
 def probe_accuracy_xy_incomplete():
     return (
-        "klicky: PROBE_ACCURACY requires both X and Y (toolhead coordinates), "
-        "or omit both to use probe_accuracy_x/y (or derived bed center)."
+        "klicky: staging requires both X and Y (toolhead coordinates), "
+        "or omit both to use config defaults (or derived bed center)."
     )
 
 
 def log_probe_accuracy_stage(x: float, y: float) -> str:
     return "klicky: PROBE_ACCURACY stage → (%.3f, %.3f)" % (x, y)
+
+
+def log_probe_calibrate_stage(x: float, y: float) -> str:
+    return "klicky: PROBE_CALIBRATE stage → (%.3f, %.3f)" % (x, y)
+
+
+def log_probe_calibrate_dock_before_paper() -> str:
+    return (
+        "klicky: docking probe before paper test "
+        "(probe tip is below nozzle — leave attached would collide)"
+    )
 
 
 def orig_g28_unavailable():
@@ -619,10 +630,10 @@ def probe_docked_ensure():
     return "klicky: probe docked (ENSURE_PROBE_DOCKED)"
 
 
-def probe_calibrate_leave_attached():
+def probe_calibrate_paper_ready():
     return (
-        "klicky: leave probe attached for paper test, then DETACH_PROBE "
-        "(or DOCK=1). Use PROBE_LOCK=1 to block auto-dock."
+        "klicky: probe docked — paper test with nozzle only "
+        "(TESTZ / ACCEPT / ABORT; Mainsail/Fluidd manual probe UI)."
     )
 
 

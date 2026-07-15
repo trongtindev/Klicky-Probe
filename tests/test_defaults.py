@@ -35,10 +35,13 @@ def test_derived_bed_and_speeds(minimal_user, printer_voron_like):
     # bed 0..350 → center 175,175 (toolhead frame, not probe-offset z_home)
     assert s.safe_xy_x == 175.0
     assert s.safe_xy_y == 175.0
-    # accuracy default = same formula as z_home default, move on
+    # accuracy / calibrate defaults = same formula as z_home default, move on
     assert s.probe_accuracy_move is True
     assert s.probe_accuracy_x == 175.0
     assert s.probe_accuracy_y == 150.0
+    assert s.probe_calibrate_move is True
+    assert s.probe_calibrate_x == 175.0
+    assert s.probe_calibrate_y == 150.0
 
 
 def test_show_ui_macros_override(minimal_user, printer_voron_like):
@@ -57,6 +60,8 @@ def test_probe_accuracy_xy_independent_of_z_home(minimal_user, printer_voron_lik
     assert s.z_home_y == 6.0
     assert s.probe_accuracy_x == 175.0
     assert s.probe_accuracy_y == 150.0
+    assert s.probe_calibrate_x == 175.0
+    assert s.probe_calibrate_y == 150.0
 
 
 def test_probe_accuracy_overrides(minimal_user, printer_voron_like):
@@ -68,6 +73,28 @@ def test_probe_accuracy_overrides(minimal_user, printer_voron_like):
     assert s.probe_accuracy_move is False
     assert s.probe_accuracy_x == 100.0
     assert s.probe_accuracy_y == 110.0
+
+
+def test_probe_calibrate_xy_independent_of_accuracy(minimal_user, printer_voron_like):
+    user = dict(minimal_user)
+    user["probe_accuracy_x"] = 10.0
+    user["probe_accuracy_y"] = 20.0
+    s = resolve_settings(user, printer_voron_like)
+    assert s.probe_accuracy_x == 10.0
+    assert s.probe_accuracy_y == 20.0
+    assert s.probe_calibrate_x == 175.0
+    assert s.probe_calibrate_y == 150.0
+
+
+def test_probe_calibrate_overrides(minimal_user, printer_voron_like):
+    user = dict(minimal_user)
+    user["probe_calibrate_move"] = False
+    user["probe_calibrate_x"] = 90.0
+    user["probe_calibrate_y"] = 95.0
+    s = resolve_settings(user, printer_voron_like)
+    assert s.probe_calibrate_move is False
+    assert s.probe_calibrate_x == 90.0
+    assert s.probe_calibrate_y == 95.0
 
 
 def test_safe_xy_overrides(minimal_user, printer_voron_like):

@@ -127,10 +127,21 @@ dock before Z (homing plan) → nozzle to endstop → (no attach required)
 ### F5 — `PROBE_CALIBRATE` (paper test)
 
 ```text
-attach → calibrate UI → leave attached by default
-  DOCK=1        → force dock after
-  PROBE_LOCK=1  → leave + lock
+stage XY (default: bed center − probe offsets)
+  → attach → automatic probe (Z)
+  → dock (required — probe tip below nozzle)
+  → move nozzle to paper point
+  → ManualProbe UI (TESTZ / ACCEPT / ABORT — Mainsail/Fluidd dialog)
 ```
+
+| Param | Effect |
+|-------|--------|
+| *(default)* | Stage to `probe_calibrate_x/y`, then full flow above |
+| `MOVE=0` | Do not stage; probe at current XY after attach |
+| `MOVE=1` | Force stage even if `probe_calibrate_move: False` |
+| `X=` / `Y=` | One-shot toolhead stage target (both required) |
+
+`PROBE_LOCK` / `DOCK` do **not** keep the probe mounted for paper test (collision safety). Probe is always docked before the nozzle paper test.
 
 ### F6 — Full manual
 
@@ -138,7 +149,7 @@ attach → calibrate UI → leave attached by default
 # printer.cfg
 [klicky_probe]
 auto_attach: False
-# wrap_probe_calibrate still True by default (PROBE_CALIBRATE attach+leave).
+# wrap_probe_calibrate still True by default (PROBE_CALIBRATE attach→probe→dock→paper).
 # Set wrap_probe_calibrate: False for stock calibrate with no Klicky wrap.
 ```
 
@@ -210,7 +221,7 @@ Full all-axes `G28` clears a previous lock at the start, then applies leave/lock
 | Command | Behavior |
 |---------|----------|
 | `BED_MESH_CALIBRATE` | When `auto_attach`: adaptive policy + attach/dock; honors `PROBE_LOCK`/`DOCK` |
-| `PROBE_CALIBRATE` | When `wrap_probe_calibrate`: attach; leave for paper test unless `DOCK=1` |
+| `PROBE_CALIBRATE` | When `wrap_probe_calibrate`: stage XY → attach → probe → **dock** → nozzle paper test (ManualProbe UI) |
 | `PROBE_ACCURACY` | When `auto_attach`: attach → optional stage XY (`probe_accuracy_move` / `MOVE` / `X`/`Y`) → stock samples → dock; honors dock params |
 | `QUAD_GANTRY_LEVEL` / `Z_TILT_ADJUST` / `SCREWS_TILT_CALCULATE` | When `auto_attach`: attach/dock around op; `Z_TILT` rehomes Z without mid-dock |
 

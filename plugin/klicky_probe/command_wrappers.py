@@ -6,10 +6,11 @@ from .adaptive_mesh import merge_mesh_params
 from .dock_policy import DockIntent, parse_dock_intent, strip_klicky_params
 from .homing_plan import HomingRequest
 from .probe_accuracy import (
-    PROBE_ACCURACY_STAGING_PARAMS,
-    resolve_probe_accuracy_move,
-    resolve_probe_accuracy_xy,
+    PROBE_STAGING_PARAMS,
+    resolve_probe_stage_move,
+    resolve_probe_stage_xy,
 )
+from .probe_calibrate import ProbeCalibrateRunner
 from . import messages as msg
 
 
@@ -169,39 +170,19 @@ class CommandWrappers:
         h.gcode.register_command("BED_MESH_CALIBRATE", handler)
 
     def wrap_probe_calibrate(self) -> None:
+        """
+        Replace stock PROBE_CALIBRATE with Klicky sequence.
+
+        Stock handler is unregistered (not called): paper test must run with
+        the probe docked. See ProbeCalibrateRunner / klipper probe.py.
+        """
         h = self._h
         prev = h.gcode.register_command("PROBE_CALIBRATE", None)
         if prev is None:
             return
         h._wrapped["PROBE_CALIBRATE"] = prev
-
-        def handler(gcmd):
-            s = h.settings
-            intent = self.dock_intent_from_gcmd(gcmd)
-            th = h._toolhead
-            if "xyz" not in th.get_status(h.reactor.monotonic()).get(
-                "homed_axes", ""
-            ):
-                raise gcmd.error(msg.home_xyz_before_probe_op())
-            h._check_over_bed()
-            # Paper test: default leave attached unless DOCK=1.
-            if not intent.force_dock and not intent.leave_attached:
-                intent = DockIntent(
-                    leave_attached=True, lock=intent.lock, force_dock=False
-                )
-            if not s.disable_docking:
-                h.lifecycle.enter_probe_work(intent)
-            h._status_led("CALIBRATING_Z")
-            try:
-                prev(gcmd)
-            finally:
-                if not s.disable_docking:
-                    h.lifecycle.exit_probe_work(intent)
-            gcmd.respond_info(msg.probe_calibrate_leave_attached())
-
-            h._status_led("READY")
-
-        h.gcode.register_command("PROBE_CALIBRATE", handler)
+        runner = ProbeCalibrateRunner(h)
+        h.gcode.register_command("PROBE_CALIBRATE", runner.run)
 
     def wrap_probe_accuracy(self) -> None:
         h = self._h
@@ -214,7 +195,7 @@ class CommandWrappers:
             s = h.settings
             params = dict(gcmd.get_command_parameters())
             intent = self.dock_intent_from_gcmd(gcmd)
-            do_move = resolve_probe_accuracy_move(
+            do_move = resolve_probe_stage_move(
                 params, config_move=s.probe_accuracy_move
             )
             th = h._toolhead
@@ -225,7 +206,7 @@ class CommandWrappers:
             tx = ty = None
             if do_move:
                 try:
-                    tx, ty = resolve_probe_accuracy_xy(
+                    tx, ty = resolve_probe_stage_xy(
                         params,
                         default_x=s.probe_accuracy_x,
                         default_y=s.probe_accuracy_y,
@@ -242,9 +223,7 @@ class CommandWrappers:
                     h._log(msg.log_probe_accuracy_stage(tx, ty))
                     pos = th.get_position()
                     th.manual_move([tx, ty, pos[2]], s.travel_speed)
-                stock_params = strip_klicky_params(
-                    params, PROBE_ACCURACY_STAGING_PARAMS
-                )
+                stock_params = strip_klicky_params(params, PROBE_STAGING_PARAMS)
                 fo = h.gcode.create_gcode_command(
                     "PROBE_ACCURACY",
                     "PROBE_ACCURACY",

@@ -26,7 +26,7 @@ Rule: **if you do not set an option, it is derived from existing Klipper config*
 |--------|---------|-------------|
 | `homing_override` | `True` | Plugin owns `G28` (XY order, Z dock/attach policy). Conflicts with `[safe_z_home]` / `[homing_override]`. **Off:** stock G28; you must attach before virtual Z yourself. |
 | `auto_attach` | `True` | **Gate** for session hooks (`start_probe_session` / `end_probe_session`) and wraps for `BED_MESH_CALIBRATE`, `PROBE_ACCURACY`, QGL / Z_TILT / SCREWS. **G28** attach/dock is owned by the homing plan when `homing_override: True` (session auto-dock is suppressed during stock virtual-Z G28). **Off:** no session hooks/wraps; use `ATTACH_PROBE` / `DETACH_PROBE` (flow F6). Bare `PROBE` will not auto-dock. |
-| `wrap_probe_calibrate` | `True` | Wrap `PROBE_CALIBRATE` (attach + leave for paper test). **Independent of `auto_attach`** (paper-test ergonomics). **Off:** stock calibrate only. |
+| `wrap_probe_calibrate` | `True` | Wrap `PROBE_CALIBRATE`: stage XY → attach → probe → **dock** → nozzle paper test (stock ManualProbe UI). **Independent of `auto_attach`**. **Off:** stock calibrate only (unsafe for Klicky if probe stays mounted). |
 | `show_ui_macros` | `True` | Register empty printer objects `gcode_macro ATTACH_PROBE` / `DETACH_PROBE` so Mainsail/Fluidd show dashboard buttons under those names. Does **not** change G-code handlers (still Python `register_command`). Set `False` to omit. Skipped if a real `[gcode_macro …]` object already exists. Buttons have no param form (`RESTORE`); console still accepts params. |
 | `dock_before_z_home` | `True` | Physical Z: dock **before** Z home (F4). |
 | `disable_docking` | `False` | Skip all attach/dock motion (debug). Breaks virtual-Z attach if you still need the probe. |
@@ -70,6 +70,8 @@ Requires `[bed_mesh]`. When `adaptive_mesh: True`, **`[exclude_object]` is requi
 | `z_home_x` / `z_home_y` | bed center − probe x/y_offset (toolhead XY for Z home **after** attach; Klipper probes at current XY) |
 | `probe_accuracy_move` | `True` — when the `PROBE_ACCURACY` wrap runs (`auto_attach`), move to a target toolhead XY before stock samples. `False` = stock “probe here” (still attaches/docks). Override per call with `MOVE=0` / `MOVE=1`. |
 | `probe_accuracy_x` / `probe_accuracy_y` | same **formula** as default `z_home_*` (bed center − probe offsets), but **independent** of `z_home_*` overrides. Set only if accuracy should use a different point than derived center. Runtime: `PROBE_ACCURACY X=… Y=…`. |
+| `probe_calibrate_move` | `True` — when `wrap_probe_calibrate`, stage toolhead XY before the automatic probe sample. Then **dock**, then nozzle paper test. `MOVE=0` / `MOVE=1` override per call. |
+| `probe_calibrate_x` / `probe_calibrate_y` | same derive formula as `z_home_*` default; **independent** of `z_home_*` and `probe_accuracy_*` overrides. Runtime: `PROBE_CALIBRATE X=… Y=…`. |
 | `endstop_backoff_x/y` | `10` |
 | `home_first` | `auto` (`auto` \| `x` \| `y`) |
 | `dock_retries` | `0` |

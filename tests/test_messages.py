@@ -13,6 +13,7 @@ def test_public_callables_return_nonempty_strings():
         "klipper_version_unparseable": ("?", MIN_KLIPPER_VERSION),
         "outside_bed": (0.0, 350.0, 0.0, 350.0),
         "log_probe_accuracy_stage": (175.0, 150.0),
+        "log_probe_calibrate_stage": (175.0, 150.0),
         "verify_failed": ("attach_failed",),
         "geometry_mode_invalid": ("travel",),
         "probe_operation_failed_code": ("attach_failed",),
@@ -153,7 +154,8 @@ def test_session_api_mentions_auto_attach_off():
 def test_info_messages():
     assert "already docked" in msg.probe_already_docked().lower()
     assert "ENSURE_PROBE_DOCKED" in msg.probe_docked_ensure()
-    assert "paper test" in msg.probe_calibrate_leave_attached().lower()
+    assert "paper test" in msg.probe_calibrate_paper_ready().lower()
+    assert "dock" in msg.log_probe_calibrate_dock_before_paper().lower()
     status = msg.probe_status_report("attached", True, 1, 0)
     assert "attached" in status
     assert "locked=True" in status
