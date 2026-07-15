@@ -34,7 +34,8 @@ def test_hold_depth():
     assert c.hold_depth == 0
 
 
-def test_virtual_z_session_manages_default_no_plan_detach():
+def test_virtual_z_session_manages_pre_attach_session_docks():
+    """Pre-attach so home_z can stage z_home_* after attach ends at dock exit."""
     req = HomingRequest(home_x=False, home_y=False, home_z=True)
     plan = plan_homing(
         req,
@@ -45,8 +46,9 @@ def test_virtual_z_session_manages_default_no_plan_detach():
         dock_before_z_home=True,
         session_manages_probe=True,
     )
-    assert plan.attach_before_z is False
+    assert plan.attach_before_z is True
     assert plan.detach_after_z is False
+    assert plan.require_fresh_attach is True
 
 
 def test_virtual_z_session_manages_leave_pre_attaches():

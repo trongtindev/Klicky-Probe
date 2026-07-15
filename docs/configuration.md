@@ -66,7 +66,7 @@ Requires `[bed_mesh]`. When `adaptive_mesh: True`, **`[exclude_object]` is requi
 | `z_hop_when_unhomed` | `True` (set `False` for free-falling beds) |
 | `bed_min_x` / `bed_min_y` | `stepper_x/y.position_min` |
 | `bed_max_x` / `bed_max_y` | `stepper_x/y.position_max` |
-| `z_home_x` / `z_home_y` | bed center − probe x/y_offset |
+| `z_home_x` / `z_home_y` | bed center − probe x/y_offset (toolhead XY for Z home **after** attach; Klipper probes at current XY) |
 | `endstop_backoff_x/y` | `10` |
 | `home_first` | `auto` (`auto` \| `x` \| `y`) |
 | `dock_retries` | `0` |

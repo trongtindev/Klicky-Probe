@@ -92,8 +92,9 @@ Prefer **`PROBE_LOCK=1`** for long START macros so an intermediate command canno
 ### F3 — Virtual Z home (`G28` + `probe:z_virtual_endstop`)
 
 ```text
-[auto_attach]
-  attach @ start_probe_session   # inside stock G28 Z
+[auto_attach + virtual Z]
+  attach before stock G28 Z      # plan attach_before_z (session begin no-ops)
+  move to z_home_x/y             # safe_z_home equivalent; Klipper probes current XY
   home Z samples
   dock  @ end_probe_session      # unless PROBE_LOCK / DOCK=0
 ```

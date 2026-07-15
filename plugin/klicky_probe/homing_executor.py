@@ -38,8 +38,9 @@ class HomingExecutor:
         for axis in plan.xy_order:
             self.home_axis(axis)
 
-        # When session owns attach (no attach_before_z), arm one-shot require_fresh
-        # for the next outermost session begin (#231).
+        # Fallback oneshot for rare paths where session attach is still deferred
+        # (no attach_before_z). Default virtual-Z pre-attaches with require_fresh
+        # on attach_probe instead (#231 / z_home XY staging).
         arm_oneshot = bool(
             plan.home_z
             and plan.require_fresh_attach
@@ -119,11 +120,13 @@ class HomingExecutor:
         h._orig_g28(fo)
 
     def home_z(self) -> None:
+        """Stage z_home XY then stock G28 Z (Klipper probes at current XY)."""
         h = self._h
         s = h.settings
         th = h._toolhead
         if not h._xy_homed():
             raise h.gcode.error(msg.home_xy_before_z())
+        # Must run after attach_before_z: attach ends at dock exit.
         th.manual_move(
             [s.z_home_x, s.z_home_y, th.get_position()[2]], s.travel_speed
         )

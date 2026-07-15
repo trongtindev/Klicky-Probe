@@ -78,8 +78,9 @@ def plan_homing(
 
     session_manages_probe:
       When True (Klipper start_probe_session hooks / auto_attach), virtual-Z
-      attach/detach is owned by the probe session around stock G28 Z. Plan only
-      sets attach_before_z when leave_attached needs lock/hold before session.
+      dock after stock G28 Z is owned by the probe session end. Attach still
+      runs before home_z() so the toolhead can stage z_home_* after attach
+      (Klipper G28 Z probes at current XY; attach ends at dock exit).
 
     reseat_before_z_home:
       When True and virtual Z, require_fresh_attach so a false "attached"
@@ -128,13 +129,13 @@ def plan_homing(
             leave = request.leave_probe_attached
             lock_after = bool(leave and request.lock_probe)
             require_fresh = bool(reseat_before_z_home)
+            # Always attach before home_z(): attach ends at dock exit, and
+            # Klipper stock G28 Z probes at current XY (no re-center). Session
+            # begin then no-ops; session end docks unless leave/lock/hold.
+            attach_before_z = True
             if session_manages_probe:
-                # Session begin attaches (with require_fresh); session end docks
-                # unless leave. Pre-attach only when leaving so lock/hold is set.
-                attach_before_z = bool(leave)
                 detach_after_z = False
             else:
-                attach_before_z = True
                 detach_after_z = not leave
         else:
             # Physical Z: always clear probe before Z home when configured —
