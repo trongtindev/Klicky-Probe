@@ -77,6 +77,9 @@ class KlickySettings:
     home_first: str  # auto | x | y
     safe_dock_travel: bool  # L-path to entry (#234)
     reseat_before_z_home: bool  # detach+attach if already "attached" (#231)
+    safe_xy_before_dock: bool  # pre-stage XY before dock (detach; probe mounted)
+    safe_xy_x: float  # default bed center
+    safe_xy_y: float
 
     # Optional behaviors
     park_after: bool
@@ -172,6 +175,13 @@ def resolve_settings(
     )
     probe_speed = float(printer.probe_speed) if printer.probe_speed else 5.0
 
+    bed_min_x = float(_get(user, "bed_min_x", printer.stepper_x_position_min))
+    bed_min_y = float(_get(user, "bed_min_y", printer.stepper_y_position_min))
+    bed_max_x = float(_get(user, "bed_max_x", printer.stepper_x_position_max))
+    bed_max_y = float(_get(user, "bed_max_y", printer.stepper_y_position_max))
+    bed_cx = (bed_min_x + bed_max_x) / 2.0
+    bed_cy = (bed_min_y + bed_max_y) / 2.0
+
     return KlickySettings(
         dock_x=float(user["dock_x"]),
         dock_y=float(user["dock_y"]),
@@ -201,10 +211,10 @@ def resolve_settings(
         detach_speed=float(_get(user, "detach_speed", 75.0)),
         z_speed=float(_get(user, "z_speed", 20.0)),
         move_accel=float(_get(user, "move_accel", printer.max_accel)),
-        bed_min_x=float(_get(user, "bed_min_x", printer.stepper_x_position_min)),
-        bed_min_y=float(_get(user, "bed_min_y", printer.stepper_y_position_min)),
-        bed_max_x=float(_get(user, "bed_max_x", printer.stepper_x_position_max)),
-        bed_max_y=float(_get(user, "bed_max_y", printer.stepper_y_position_max)),
+        bed_min_x=bed_min_x,
+        bed_min_y=bed_min_y,
+        bed_max_x=bed_max_x,
+        bed_max_y=bed_max_y,
         z_home_x=float(_get(user, "z_home_x", z_home_x_d)),
         z_home_y=float(_get(user, "z_home_y", z_home_y_d)),
         endstop_backoff_x=float(_get(user, "endstop_backoff_x", 10.0)),
@@ -212,6 +222,9 @@ def resolve_settings(
         home_first=home_first,
         safe_dock_travel=bool(_get(user, "safe_dock_travel", True)),
         reseat_before_z_home=bool(_get(user, "reseat_before_z_home", True)),
+        safe_xy_before_dock=bool(_get(user, "safe_xy_before_dock", True)),
+        safe_xy_x=float(_get(user, "safe_xy_x", bed_cx)),
+        safe_xy_y=float(_get(user, "safe_xy_y", bed_cy)),
         park_after=bool(_get(user, "park_after", False)),
         park_x=_get(user, "park_x", None),
         park_y=_get(user, "park_y", None),

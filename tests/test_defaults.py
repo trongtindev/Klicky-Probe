@@ -30,6 +30,26 @@ def test_derived_bed_and_speeds(minimal_user, printer_voron_like):
     assert s.adaptive_margin == 5.0
     assert s.safe_dock_travel is True
     assert s.reseat_before_z_home is True
+    assert s.safe_xy_before_dock is True
+    # bed 0..350 → center 175,175 (toolhead frame, not probe-offset z_home)
+    assert s.safe_xy_x == 175.0
+    assert s.safe_xy_y == 175.0
+
+
+def test_safe_xy_overrides(minimal_user, printer_voron_like):
+    user = dict(minimal_user)
+    user["safe_xy_x"] = 5.5
+    user["safe_xy_y"] = 10.0
+    s = resolve_settings(user, printer_voron_like)
+    assert s.safe_xy_x == 5.5
+    assert s.safe_xy_y == 10.0
+    assert s.safe_xy_before_dock is True
+
+    user["safe_xy_before_dock"] = False
+    s = resolve_settings(user, printer_voron_like)
+    assert s.safe_xy_before_dock is False
+    assert s.safe_xy_x == 5.5
+    assert s.safe_xy_y == 10.0
 
 
 def test_travel_speed_respects_low_max_velocity(minimal_user):
@@ -52,6 +72,9 @@ def test_user_override_wins(minimal_user, printer_voron_like):
             "dock_z": 15.0,
             "safe_dock_travel": False,
             "reseat_before_z_home": False,
+            "safe_xy_before_dock": False,
+            "safe_xy_x": 12.0,
+            "safe_xy_y": 34.0,
         }
     )
     s = resolve_settings(user, printer_voron_like)
@@ -65,6 +88,9 @@ def test_user_override_wins(minimal_user, printer_voron_like):
     assert s.dock_z == 15.0
     assert s.safe_dock_travel is False
     assert s.reseat_before_z_home is False
+    assert s.safe_xy_before_dock is False
+    assert s.safe_xy_x == 12.0
+    assert s.safe_xy_y == 34.0
 
 
 def test_dock_servo_requires_fields(minimal_user, printer_voron_like):

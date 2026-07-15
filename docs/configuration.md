@@ -71,7 +71,22 @@ Requires `[bed_mesh]`. When `adaptive_mesh: True`, **`[exclude_object]` is requi
 | `home_first` | `auto` (`auto` \| `x` \| `y`) |
 | `dock_retries` | `0` |
 | `safe_dock_travel` | `True` — L-path staging to dock entry (avoids diagonal crash into dock) |
+| `safe_xy_before_dock` | `True` — on **detach** only, move to `safe_xy_x`/`safe_xy_y` before dock approach (avoids sweeping nozzle clean / purge brush with probe mounted) |
+| `safe_xy_x` / `safe_xy_y` | bed center — omit → center of `bed_min/max` |
 | `reseat_before_z_home` | `True` — virtual Z: if probe already “attached”, dock then re-attach before home |
+
+### Safe XY before dock (when to use)
+
+Attach/detach always raise Z to `clearance_z` first, then may still travel **horizontally** from the current XY toward the dock. On **detach** (probe on the toolhead), if that path crosses a **nozzle cleaner**, purge brush, or similar fixed obstacle, the probe can be knocked off the mount. Safe XY staging runs only on detach; attach travels empty and skips it.
+
+| Situation | Recommendation |
+|-----------|----------------|
+| Cleaner / brush / wipe on the path from print area → dock | Keep **`safe_xy_before_dock: True`** (default). Omit `safe_xy_x`/`safe_xy_y` for bed center, or set both explicitly. |
+| Bed center is still not clear | Set custom `safe_xy_x` / `safe_xy_y` clear of the obstacle. |
+| Open bed, no fixed XY obstacles, want shortest path | `safe_xy_before_dock: False` |
+| Already using `umbilical` | Both OK; order is umbilical → safe XY (detach) → dock entry |
+
+This is **not** the same as `safe_dock_travel` (L-path only for the final approach to dock entry) or `umbilical` (cable staging).
 
 ### Coordinate frame (dock / approach / park)
 

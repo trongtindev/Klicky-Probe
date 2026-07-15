@@ -123,6 +123,7 @@ class KlickyProbe:
             "endstop_backoff_x", "endstop_backoff_y",
             "park_x", "park_y", "park_z",
             "umbilical_x", "umbilical_y",
+            "safe_xy_x", "safe_xy_y",
             "servo_deploy_angle", "servo_retract_angle", "servo_delay_ms",
         )
         for name in optional_floats:
@@ -134,6 +135,7 @@ class KlickyProbe:
             "dock_before_z_home", "disable_docking", "verbose", "debug",
             "adaptive_mesh", "z_hop_when_unhomed", "park_after",
             "umbilical", "dock_servo", "safe_dock_travel", "reseat_before_z_home",
+            "safe_xy_before_dock",
         )
         for name in optional_bools:
             if _config_has(config, name):
@@ -251,6 +253,9 @@ class KlickyProbe:
                     s.dock_before_z_home,
                     s.reseat_before_z_home,
                     s.safe_dock_travel,
+                    s.safe_xy_before_dock,
+                    s.safe_xy_x,
+                    s.safe_xy_y,
                     s.home_first,
                     s.dock_retries,
                     s.wrap_probe_calibrate,

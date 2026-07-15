@@ -159,13 +159,26 @@ class DockExecutor:
             "SET_SERVO SERVO=%s WIDTH=0" % s.servo_name
         )
 
+    def _move_xy_clearance(self, x: float, y: float) -> None:
+        s = self._h.settings
+        self._h._toolhead.manual_move([x, y, s.clearance_z], s.travel_speed)
+
     def umbilical(self) -> None:
         s = self._h.settings
         if not s.umbilical:
             return
-        self._h._toolhead.manual_move(
-            [s.umbilical_x, s.umbilical_y, s.clearance_z], s.travel_speed
-        )
+        if not self._h._xy_homed():
+            return
+        self._move_xy_clearance(s.umbilical_x, s.umbilical_y)
+
+    def safe_xy(self) -> None:
+        """Stage at safe XY before dock (probe mounted → cleaner/brush clearance)."""
+        s = self._h.settings
+        if not s.safe_xy_before_dock:
+            return
+        if not self._h._xy_homed():
+            return
+        self._move_xy_clearance(s.safe_xy_x, s.safe_xy_y)
 
     def park(self) -> None:
         s = self._h.settings
@@ -210,6 +223,9 @@ class DockExecutor:
         th = self._h._toolhead
         self.ensure_clearance()
         self.umbilical()
+        # Probe is on the toolhead only when docking (detach). Attach travels empty.
+        if mode == "detach":
+            self.safe_xy()
         pos = th.get_position()
         for wp in travel_to_entry_waypoints(
             geo, pos[0], pos[1], mode=mode, enabled=s.safe_dock_travel

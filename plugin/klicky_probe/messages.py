@@ -97,6 +97,9 @@ def log_resolved_detail(
     dock_before_z_home: bool,
     reseat_before_z_home: bool,
     safe_dock_travel: bool,
+    safe_xy_before_dock: bool,
+    safe_xy_x: float,
+    safe_xy_y: float,
     home_first: str,
     dock_retries: int,
     wrap_probe_calibrate: bool,
@@ -108,7 +111,8 @@ def log_resolved_detail(
     return (
         "resolved detail: attach=%.1f detach=%.1f z_speed=%.1f "
         "dock_before_z_home=%s reseat_before_z_home=%s "
-        "safe_dock_travel=%s home_first=%s dock_retries=%d "
+        "safe_dock_travel=%s safe_xy_before_dock=%s safe_xy_x=%.1f safe_xy_y=%.1f "
+        "home_first=%s dock_retries=%d "
         "wrap_probe_calibrate=%s park_after=%s umbilical=%s "
         "dock_servo=%s disable_docking=%s"
         % (
@@ -118,6 +122,9 @@ def log_resolved_detail(
             dock_before_z_home,
             reseat_before_z_home,
             safe_dock_travel,
+            safe_xy_before_dock,
+            safe_xy_x,
+            safe_xy_y,
             home_first,
             dock_retries,
             wrap_probe_calibrate,
