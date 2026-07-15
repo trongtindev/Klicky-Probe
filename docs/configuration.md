@@ -63,7 +63,7 @@ Requires `[bed_mesh]`. When `adaptive_mesh: True`, **`[exclude_object]` is requi
 | `detach_speed` | `75` |
 | `z_speed` | `20` |
 | `clearance_z` | at least `25`, or based on probe z_offset |
-| `z_hop_when_unhomed` | `True` (set `False` for free-falling beds) |
+| `z_hop_when_unhomed` | `True` (set `False` for free-falling beds). Unhomed hop runs **at most once** until Z is successfully homed — stacking hops would re-zero Z at each new height and walk out of the intended Z envelope (G28 + attach clearance + retries / failed re-home). |
 | `bed_min_x` / `bed_min_y` | `stepper_x/y.position_min` |
 | `bed_max_x` / `bed_max_y` | `stepper_x/y.position_max` |
 | `z_home_x` / `z_home_y` | bed center − probe x/y_offset (toolhead XY for Z home **after** attach; Klipper probes at current XY) |

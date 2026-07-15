@@ -131,5 +131,6 @@ class HomingExecutor:
             [s.z_home_x, s.z_home_y, th.get_position()[2]], s.travel_speed
         )
         self.call_orig_g28("Z")
+        h.dock.note_z_homed()
         pos = th.get_position()
         th.manual_move([pos[0], pos[1], s.clearance_z], s.z_speed)

@@ -26,6 +26,11 @@ class DockExecutor:
         self._h = host
         self._dock_accel_applied = False
         self._prev_max_accel = None
+        # Unhomed Z hop claims current Z as 0 then raises by clearance_z.
+        # Only allow once until Z is actually homed — stacking hops (G28 +
+        # attach ensure_clearance + dock_retries + failed re-home) walks the
+        # toolhead out of the intended Z envelope.
+        self._unhomed_z_hop_done = False
 
     def geometry(self) -> DockGeometry:
         s = self._h.settings
@@ -70,6 +75,8 @@ class DockExecutor:
         th = self._h._toolhead
         homed = th.get_status(self._h.reactor.monotonic()).get("homed_axes", "")
         pos = th.get_position()
+        if "z" in homed:
+            self.note_z_homed()
         cur_z = pos[2] if "z" in homed else None
         if not clearance_needed(cur_z, s.clearance_z):
             return
@@ -79,17 +86,32 @@ class DockExecutor:
             return
         th.manual_move([pos[0], pos[1], s.clearance_z], s.z_speed)
 
+    def note_z_homed(self) -> None:
+        """Z is known — next unhomed cycle may hop again."""
+        self._unhomed_z_hop_done = False
+
     def z_hop_unhomed(self, z_hop: float) -> None:
         """
         Raise Z when unhomed — same pattern as klippy/extras/safe_z_home.py.
+
+        Idempotent while still unhomed: each call would re-zero Z at the new
+        physical height and hop again, stacking clearance and leaving the
+        intended Z path (especially after home failures / dock retries).
         """
         th = self._h._toolhead
+        homed = th.get_status(self._h.reactor.monotonic()).get("homed_axes", "")
+        if "z" in homed:
+            self.note_z_homed()
+            return
+        if self._unhomed_z_hop_done:
+            return
         s = self._h.settings
         pos = th.get_position()
         pos[2] = 0.0
         th.set_position(pos, homing_axes="z")
         th.manual_move([None, None, z_hop], s.z_speed)
         th.get_kinematics().clear_homing_state("z")
+        self._unhomed_z_hop_done = True
 
     def begin_dock_limits(self) -> None:
         s = self._h.settings
