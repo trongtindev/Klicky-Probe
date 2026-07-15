@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 from . import messages as msg
+from .defaults import (
+    endstop_backoff_target,
+    sect_optional_float,
+    sect_require_float,
+)
 from .homing_plan import HomingRequest, plan_homing
 
 
@@ -89,13 +94,17 @@ class HomingExecutor:
             return
         configfile = h.printer.lookup_object("configfile")
         st = configfile.get_status(h.reactor.monotonic()).get("settings", {})
-        sect = st.get("stepper_%s" % axis, {})
-        endstop = float(sect.get("position_endstop", 0))
-        pmin = float(sect.get("position_min", 0))
-        pmax = float(sect.get("position_max", 300))
-        mid = (pmin + pmax) / 2.0
+        sect = st.get("stepper_%s" % axis, {}) or {}
+        section = "stepper_%s" % axis
+        try:
+            # Machine envelope (stepper position_*), not bed_* policy overrides.
+            endstop = sect_require_float(sect, "position_endstop", section)
+            pmax = sect_require_float(sect, "position_max", section)
+            pmin = sect_optional_float(sect, "position_min", 0.0)
+        except ValueError as e:
+            raise h.gcode.error(str(e))
         pos = th.get_position()
-        new = endstop - backoff if endstop > mid else endstop + backoff
+        new = endstop_backoff_target(endstop, pmin, pmax, backoff)
         if axis == "x":
             th.manual_move([new, pos[1], pos[2]], s.travel_speed)
         else:

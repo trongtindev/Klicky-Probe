@@ -14,6 +14,7 @@ from . import messages as msg
 from .command_wrappers import CommandWrappers
 from .defaults import (
     PrinterSnapshot,
+    build_printer_snapshot_from_settings,
     resolve_settings,
     validate_homing_conflicts,
 )
@@ -190,31 +191,23 @@ class KlickyProbe:
         printer = self.printer
         configfile = printer.lookup_object("configfile")
         status = configfile.get_status(self.reactor.monotonic())
-        settings = status.get("settings", {})
-
-        def sect(name):
-            return settings.get(name, {}) or {}
-
-        sx, sy, sz = sect("stepper_x"), sect("stepper_y"), sect("stepper_z")
-        probe, pr = sect("probe"), sect("printer")
-        endstop = str(sz.get("endstop_pin", ""))
-        return PrinterSnapshot(
-            stepper_x_position_max=float(sx.get("position_max", 300)),
-            stepper_y_position_max=float(sy.get("position_max", 300)),
-            stepper_x_position_min=float(sx.get("position_min", 0)),
-            stepper_y_position_min=float(sy.get("position_min", 0)),
-            probe_x_offset=float(probe.get("x_offset", 0)),
-            probe_y_offset=float(probe.get("y_offset", 0)),
-            probe_z_offset=float(probe.get("z_offset", 0)),
-            probe_speed=float(probe.get("speed", 5)),
-            max_velocity=float(pr.get("max_velocity", 300)),
-            max_accel=float(pr.get("max_accel", 3000)),
-            z_virtual_endstop="z_virtual_endstop" in endstop,
-            has_bed_mesh=printer.lookup_object("bed_mesh", None) is not None,
-            has_exclude_object=printer.lookup_object("exclude_object", None) is not None,
-            has_safe_z_home=printer.lookup_object("safe_z_home", None) is not None,
-            has_homing_override=printer.lookup_object("homing_override", None) is not None,
-        )
+        settings = status.get("settings", {}) or {}
+        try:
+            return build_printer_snapshot_from_settings(
+                settings,
+                has_bed_mesh=printer.lookup_object("bed_mesh", None) is not None,
+                has_exclude_object=(
+                    printer.lookup_object("exclude_object", None) is not None
+                ),
+                has_safe_z_home=(
+                    printer.lookup_object("safe_z_home", None) is not None
+                ),
+                has_homing_override=(
+                    printer.lookup_object("homing_override", None) is not None
+                ),
+            )
+        except ValueError as e:
+            raise self.printer.config_error(str(e))
 
     def _handle_connect(self):
         ver = self.printer.get_start_args().get("software_version", "?")

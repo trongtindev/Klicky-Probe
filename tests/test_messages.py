@@ -8,6 +8,7 @@ def test_public_callables_return_nonempty_strings():
     """Every public function in messages returns a non-empty str (no-arg or sample)."""
     samples = {
         "missing_required": (["dock_x", "dock_y"],),
+        "missing_derived_setting": ("printer", "max_velocity"),
         "home_first_invalid": ("z",),
         "klipper_version_too_old": ("v0.12.0", MIN_KLIPPER_VERSION),
         "klipper_version_unparseable": ("?", MIN_KLIPPER_VERSION),

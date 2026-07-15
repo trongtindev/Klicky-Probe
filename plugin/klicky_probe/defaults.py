@@ -10,23 +10,99 @@ from . import messages as msg
 
 @dataclass
 class PrinterSnapshot:
-    """Subset of Klipper config used for defaults (tests + runtime)."""
+    """Subset of Klipper config used for defaults (tests + runtime).
 
-    stepper_x_position_max: float = 300.0
-    stepper_y_position_max: float = 300.0
+    Motion / bed / probe_z fields are **required** — no invented numbers.
+    Runtime: ``build_printer_snapshot_from_settings``. Tests: full construction
+    or ``dataclasses.replace`` on a complete fixture.
+
+    Only Klipper-optional keys and feature flags have defaults (position_min 0,
+    probe x/y offset 0, feature booleans False).
+    """
+
+    stepper_x_position_max: float
+    stepper_y_position_max: float
+    max_velocity: float
+    max_accel: float
+    probe_z_offset: float
     stepper_x_position_min: float = 0.0
     stepper_y_position_min: float = 0.0
     probe_x_offset: float = 0.0
     probe_y_offset: float = 0.0
-    probe_z_offset: float = 0.0
-    probe_speed: float = 80.0
-    max_velocity: float = 300.0
-    max_accel: float = 3000.0
     z_virtual_endstop: bool = False
     has_bed_mesh: bool = False
     has_exclude_object: bool = False
     has_safe_z_home: bool = False
     has_homing_override: bool = False
+
+
+def sect_require_float(sect: Dict[str, Any], key: str, section: str) -> float:
+    """Read a required float from a configfile settings section dict."""
+    if not isinstance(sect, dict) or key not in sect or sect[key] is None:
+        raise ValueError(msg.missing_derived_setting(section, key))
+    return float(sect[key])
+
+
+def sect_optional_float(
+    sect: Dict[str, Any], key: str, default: float
+) -> float:
+    """Klipper-optional keys only (e.g. position_min default 0, probe x/y offset)."""
+    if not isinstance(sect, dict) or key not in sect or sect[key] is None:
+        return float(default)
+    return float(sect[key])
+
+
+def endstop_backoff_target(
+    endstop: float, pmin: float, pmax: float, backoff: float
+) -> float:
+    """XY after home: move away from endstop by backoff (machine envelope mid)."""
+    mid = (float(pmin) + float(pmax)) / 2.0
+    e = float(endstop)
+    b = float(backoff)
+    return e - b if e > mid else e + b
+
+
+def build_printer_snapshot_from_settings(
+    settings: Dict[str, Any],
+    *,
+    has_bed_mesh: bool = False,
+    has_exclude_object: bool = False,
+    has_safe_z_home: bool = False,
+    has_homing_override: bool = False,
+) -> PrinterSnapshot:
+    """Build a snapshot from ``configfile`` status ``settings``.
+
+    Required (must exist in printer config — no invented numbers):
+      stepper_x/y position_max, printer max_velocity / max_accel, probe z_offset.
+
+    Optional with the same defaults as stock Klipper:
+      stepper position_min → 0, probe x_offset / y_offset → 0.
+
+    ``z_virtual_endstop`` is derived from ``stepper_z.endstop_pin``.
+    """
+    sx = settings.get("stepper_x") or {}
+    sy = settings.get("stepper_y") or {}
+    sz = settings.get("stepper_z") or {}
+    probe = settings.get("probe") or {}
+    pr = settings.get("printer") or {}
+    endstop_pin = str(sz.get("endstop_pin", "") or "")
+
+    return PrinterSnapshot(
+        stepper_x_position_max=sect_require_float(sx, "position_max", "stepper_x"),
+        stepper_y_position_max=sect_require_float(sy, "position_max", "stepper_y"),
+        stepper_x_position_min=sect_optional_float(sx, "position_min", 0.0),
+        stepper_y_position_min=sect_optional_float(sy, "position_min", 0.0),
+        probe_x_offset=sect_optional_float(probe, "x_offset", 0.0),
+        probe_y_offset=sect_optional_float(probe, "y_offset", 0.0),
+        probe_z_offset=sect_require_float(probe, "z_offset", "probe"),
+        max_velocity=sect_require_float(pr, "max_velocity", "printer"),
+        max_accel=sect_require_float(pr, "max_accel", "printer"),
+        z_virtual_endstop="z_virtual_endstop" in endstop_pin,
+        has_bed_mesh=has_bed_mesh,
+        has_exclude_object=has_exclude_object,
+        has_safe_z_home=has_safe_z_home,
+        has_homing_override=has_homing_override,
+    )
 
 
 @dataclass
@@ -173,15 +249,8 @@ def resolve_settings(
         if servo_deploy is None or servo_retract is None:
             raise ValueError(msg.dock_servo_needs_angles())
 
-    # Cap derived travel speed; full override still allowed via travel_speed.
-    DEFAULT_TRAVEL_SPEED_CAP = 200.0
-    travel = float(
-        _get(
-            user,
-            "travel_speed",
-            min(float(printer.max_velocity), DEFAULT_TRAVEL_SPEED_CAP),
-        )
-    )
+    # Default travel = printer max_velocity; user travel_speed overrides.
+    travel = float(_get(user, "travel_speed", float(printer.max_velocity)))
 
     bed_min_x = float(_get(user, "bed_min_x", printer.stepper_x_position_min))
     bed_min_y = float(_get(user, "bed_min_y", printer.stepper_y_position_min))

@@ -8,10 +8,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from klicky_probe.probe_calibrate import (
+    PAPER_START_LIFT_MM,
     PROBE_CALIBRATE_STAGING_PARAMS,
     ProbeCalibrateRunner,
     calc_probe_z_offset,
     format_z_offset_result,
+    paper_start_z,
 )
 from klicky_probe.probe_accuracy import PROBE_STAGING_PARAMS
 from klicky_probe.probe_session import SessionCounters
@@ -34,6 +36,11 @@ def test_format_z_offset_result():
     text = format_z_offset_result("probe", 2.345)
     assert "probe: z_offset: 2.345" in text
     assert "SAVE_CONFIG" in text
+
+
+def test_paper_start_z_matches_stock_lift():
+    assert paper_start_z(1.25) == 1.25 + PAPER_START_LIFT_MM
+    assert paper_start_z(0.0) == 5.0
 
 
 class _FakeToolhead:
@@ -80,10 +87,6 @@ def _host(*, disable_docking=False, locked=False, calibrate_move=True):
     dock = MagicMock()
     probe = MagicMock()
     probe.get_offsets.return_value = (0.0, -25.0, 2.5)
-    probe.get_probe_params.return_value = {
-        "lift_speed": 5.0,
-        "probe_speed": 80.0,
-    }
     probe.get_status.return_value = {"name": "probe"}
     gcode = MagicMock()
     gcode.create_gcode_command.side_effect = (
@@ -122,6 +125,7 @@ def _host(*, disable_docking=False, locked=False, calibrate_move=True):
 
 def test_runner_order_attach_probe_dock_manual():
     host, th, lifecycle, dock, probe = _host()
+    # bed_* for formula; toolhead Z after sample is trigger height (stock).
     ppos = SimpleNamespace(bed_x=175.0, bed_y=150.0, bed_z=1.0)
     probe_mod = SimpleNamespace(run_single_probe=MagicMock(return_value=ppos))
     manual = SimpleNamespace(
@@ -135,11 +139,16 @@ def test_runner_order_attach_probe_dock_manual():
         assert kwargs.get("status_led") is False
         host.state.attach_state = ProbeAttachState.ATTACHED
 
+    moves_after_detach = [0]
+
     def detach(**kwargs):
         order.append("detach_force=%s" % kwargs.get("force", False))
         assert kwargs.get("force") is True
         assert kwargs.get("status_led") is False
         host.state.attach_state = ProbeAttachState.DOCKED
+        # Dock leaves toolhead high near dock (not over paper XY).
+        th.pos = [10.0, 300.0, 25.0]
+        moves_after_detach[0] = len(th.moves)
 
     lifecycle.attach_probe.side_effect = attach
     lifecycle.detach_probe.side_effect = detach
@@ -149,12 +158,16 @@ def test_runner_order_attach_probe_dock_manual():
         # Hold must be open during sample so session end would not auto-dock.
         assert host._session.hold_depth == 1
         order.append("probe")
+        th.pos[2] = 2.5  # last-sample toolhead Z (stock get_position)
         return ppos
 
     probe_mod.run_single_probe.side_effect = run_probe
 
     def manual_helper(printer, gcmd, finalize):
         order.append("manual")
+        # ManualProbe starts after paper positioning.
+        assert th.pos[0] == 175.0 and th.pos[1] == 150.0
+        assert th.pos[2] == paper_start_z(2.5)
         finalize(SimpleNamespace(bed_z=0.2))
 
     manual.ManualProbeHelper.side_effect = manual_helper
@@ -173,7 +186,14 @@ def test_runner_order_attach_probe_dock_manual():
         "detach_force=True",
         "manual",
     ]
-    assert any(m[0][0] == 175.0 and m[0][1] == 150.0 for m in th.moves)
+    # Post-dock only (stage XY must not satisfy this slice).
+    post_dock = th.moves[moves_after_detach[0] :]
+    assert any(
+        c[0] == 175.0 and c[1] == 150.0 and spd == 200.0
+        for c, spd, _ in post_dock
+    ), post_dock
+    assert post_dock[-1][2][2] == paper_start_z(2.5)
+    assert post_dock[-1][1] == 20.0  # z_speed for paper lower
     host.printer.lookup_object.assert_called_with("configfile")
     host.printer.lookup_object.return_value.set.assert_called_with(
         "probe", "z_offset", "3.300"

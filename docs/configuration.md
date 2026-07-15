@@ -58,19 +58,19 @@ Requires `[bed_mesh]`. When `adaptive_mesh: True`, **`[exclude_object]` is requi
 
 | Option | Derived default |
 |--------|-----------------|
-| `travel_speed` | `min(printer.max_velocity, 200)` |
-| `move_accel` | `printer.max_accel` (around attach/detach) |
+| `travel_speed` | `[printer] max_velocity` (required there — no invented fallback) |
+| `move_accel` | `[printer] max_accel` around attach/detach (same rule) |
 | `attach_speed` | `50` |
 | `detach_speed` | `75` |
 | `z_speed` | `20` |
 | `clearance_z` | at least `25`, or based on probe z_offset |
 | `z_hop_when_unhomed` | `True` (set `False` for free-falling beds). Unhomed hop runs **at most once** until Z is successfully homed — stacking hops would re-zero Z at each new height and walk out of the intended Z envelope (G28 + attach clearance + retries / failed re-home). |
-| `bed_min_x` / `bed_min_y` | `stepper_x/y.position_min` |
-| `bed_max_x` / `bed_max_y` | `stepper_x/y.position_max` |
+| `bed_min_x` / `bed_min_y` | `stepper_x/y.position_min` (Klipper default `0` if omitted) |
+| `bed_max_x` / `bed_max_y` | `stepper_x/y.position_max` (**required** in stepper config) |
 | `z_home_x` / `z_home_y` | bed center − probe x/y_offset (toolhead XY for Z home **after** attach; Klipper probes at current XY) |
 | `probe_accuracy_move` | `True` — when the `PROBE_ACCURACY` wrap runs (`auto_attach`), move to a target toolhead XY before stock samples. `False` = stock “probe here” (still attaches/docks). Override per call with `MOVE=0` / `MOVE=1`. |
 | `probe_accuracy_x` / `probe_accuracy_y` | same **formula** as default `z_home_*` (bed center − probe offsets), but **independent** of `z_home_*` overrides. Set only if accuracy should use a different point than derived center. Runtime: `PROBE_ACCURACY X=… Y=…`. |
-| `probe_calibrate_move` | `True` — when `wrap_probe_calibrate`, stage toolhead XY before the automatic probe sample. Then **dock**, then nozzle paper test. `MOVE=0` / `MOVE=1` override per call. |
+| `probe_calibrate_move` | `True` — when `wrap_probe_calibrate`, stage toolhead XY before the automatic probe sample. Then **dock**, then nozzle paper test. `MOVE=0` / `MOVE=1` override per call. Stage + post-dock XY use `travel_speed`; Z uses `z_speed`. Paper ManualProbe starts at toolhead Z after the sample + 5 mm (stock lift), not `clearance_z`. Probe descent still uses Klipper `[probe] speed`. |
 | `probe_calibrate_x` / `probe_calibrate_y` | same derive formula as `z_home_*` default; **independent** of `z_home_*` and `probe_accuracy_*` overrides. Runtime: `PROBE_CALIBRATE X=… Y=…`. |
 | `endstop_backoff_x/y` | `10` |
 | `home_first` | `auto` (`auto` \| `x` \| `y`) |

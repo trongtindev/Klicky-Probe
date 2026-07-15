@@ -25,7 +25,6 @@ def printer_voron_like() -> PrinterSnapshot:
         probe_x_offset=0.0,
         probe_y_offset=25.0,
         probe_z_offset=0.0,
-        probe_speed=80.0,
         max_velocity=300.0,
         max_accel=3000.0,
         z_virtual_endstop=False,

@@ -394,6 +394,14 @@ def missing_required(missing_keys: Iterable[str]):
     )
 
 
+def missing_derived_setting(section: str, key: str) -> str:
+    return (
+        "[klicky_probe] cannot derive defaults: [%s] %s is missing. "
+        "Set it in the printer config (Klicky does not invent machine limits)."
+        % (section, key)
+    )
+
+
 def home_first_invalid(value=None):
     if value is None:
         return (

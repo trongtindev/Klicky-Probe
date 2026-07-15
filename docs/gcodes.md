@@ -127,10 +127,10 @@ dock before Z (homing plan) → nozzle to endstop → (no attach required)
 ### F5 — `PROBE_CALIBRATE` (paper test)
 
 ```text
-stage XY (default: bed center − probe offsets)
-  → attach → automatic probe (Z)
+stage XY (default: bed center − probe offsets)   # travel_speed
+  → attach → automatic probe (Z)                   # [probe] speed
   → dock (required — probe tip below nozzle)
-  → move nozzle to paper point
+  → XY to paper @ travel_speed, Z to (trigger_z+5) @ z_speed
   → ManualProbe UI (TESTZ / ACCEPT / ABORT — Mainsail/Fluidd dialog)
 ```
 

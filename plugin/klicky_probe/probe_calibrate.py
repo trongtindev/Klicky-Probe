@@ -30,6 +30,9 @@ from .probe_accuracy import (
 # Alias used by strip / docs
 PROBE_CALIBRATE_STAGING_PARAMS = PROBE_STAGING_PARAMS
 
+# Stock cmd_PROBE_CALIBRATE lifts +5 mm above probe trigger before paper UI.
+PAPER_START_LIFT_MM = 5.0
+
 
 def calc_probe_z_offset(
     ppos_bed_z: float,
@@ -38,6 +41,11 @@ def calc_probe_z_offset(
 ) -> float:
     """Stock formula: offsets[2] - mpresult.bed_z + ppos.bed_z."""
     return float(probe_z_offset) - float(mpresult_bed_z) + float(ppos_bed_z)
+
+
+def paper_start_z(trigger_z: float, lift: float = PAPER_START_LIFT_MM) -> float:
+    """Z for ManualProbe start: toolhead Z after probe sample + stock lift."""
+    return float(trigger_z) + float(lift)
 
 
 def format_z_offset_result(probe_section: str, z_offset: float) -> str:
@@ -145,6 +153,9 @@ class ProbeCalibrateRunner:
                     ppos = probe_mod.run_single_probe(h._probe, fo)
             else:
                 ppos = probe_mod.run_single_probe(h._probe, fo)
+            # Stock uses toolhead Z after the sample (last sample), not averaged
+            # ProbeResult.test_z — capture before dock changes Z.
+            trigger_z = th.get_position()[2]
 
             offsets = h._probe.get_offsets(fo)
             probe_section = (
@@ -156,17 +167,22 @@ class ProbeCalibrateRunner:
             self._dock_before_paper()
             h._status_led("CALIBRATING_Z")
 
-            # Stock: lift then nozzle to ppos.bed_x/y (probe.py cmd_PROBE_CALIBRATE)
-            pparams = h._probe.get_probe_params(fo)
-            lift_speed = pparams.get("lift_speed", s.z_speed)
-            move_speed = pparams.get("probe_speed", s.travel_speed)
+            # After dock: long XY @ travel_speed (not [probe] speed), then paper
+            # Z = trigger_z + 5 like stock cmd_PROBE_CALIBRATE (not clearance_z).
+            # [probe] speed remains for run_single_probe only.
+            paper_z = paper_start_z(trigger_z)
             curpos = th.get_position()
-            if curpos[2] < s.clearance_z:
+            travel_z = max(curpos[2], s.clearance_z, paper_z)
+            if curpos[2] < travel_z:
                 th.manual_move(
-                    [curpos[0], curpos[1], s.clearance_z], lift_speed
+                    [curpos[0], curpos[1], travel_z], s.z_speed
                 )
                 curpos = th.get_position()
-            th.manual_move([ppos.bed_x, ppos.bed_y, curpos[2]], move_speed)
+            th.manual_move(
+                [ppos.bed_x, ppos.bed_y, curpos[2]], s.travel_speed
+            )
+            # Always command paper Z (avoid float == skip after travel).
+            th.manual_move([ppos.bed_x, ppos.bed_y, paper_z], s.z_speed)
 
             gcmd.respond_info(msg.probe_calibrate_paper_ready())
 
