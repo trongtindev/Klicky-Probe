@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from .adaptive_mesh import merge_mesh_params
 from .dock_policy import DockIntent, parse_dock_intent, strip_klicky_params
+from .gcode_cmd import create_stock_gcmd
 from .homing_plan import HomingRequest
 from .probe_accuracy import (
     PROBE_STAGING_PARAMS,
@@ -156,11 +157,8 @@ class CommandWrappers:
             h._status_led("MESHING")
             h.lifecycle.enter_probe_work(intent)
             try:
-                fo = h.gcode.create_gcode_command(
-                    "BED_MESH_CALIBRATE",
-                    "BED_MESH_CALIBRATE",
-                    {str(k): str(v) for k, v in merged.items()},
-                )
+                # create_stock_gcmd: extended prev() reparses commandline only.
+                fo = create_stock_gcmd(h.gcode, "BED_MESH_CALIBRATE", merged)
                 prev(fo)
             finally:
                 h.lifecycle.exit_probe_work(intent)
@@ -222,11 +220,7 @@ class CommandWrappers:
                     pos = th.get_position()
                     th.manual_move([tx, ty, pos[2]], s.travel_speed)
                 stock_params = strip_klicky_params(params, PROBE_STAGING_PARAMS)
-                fo = h.gcode.create_gcode_command(
-                    "PROBE_ACCURACY",
-                    "PROBE_ACCURACY",
-                    {str(k): str(v) for k, v in stock_params.items()},
-                )
+                fo = create_stock_gcmd(h.gcode, "PROBE_ACCURACY", stock_params)
                 prev(fo)
             finally:
                 h.lifecycle.exit_probe_work(intent, restore=True)

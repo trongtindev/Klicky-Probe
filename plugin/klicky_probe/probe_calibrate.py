@@ -126,6 +126,7 @@ class ProbeCalibrateRunner:
 
         manual_probe.verify_no_manual_probe(h.printer)
         stock_params = strip_klicky_params(params, PROBE_STAGING_PARAMS)
+        # Direct probe helpers read _params (no extended reparse).
         fo = h.gcode.create_gcode_command(
             "PROBE_CALIBRATE",
             "PROBE_CALIBRATE",
