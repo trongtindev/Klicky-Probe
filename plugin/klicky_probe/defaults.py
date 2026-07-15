@@ -51,6 +51,7 @@ class KlickySettings:
     homing_override: bool
     auto_attach: bool
     wrap_probe_calibrate: bool
+    show_ui_macros: bool
     dock_before_z_home: bool
     disable_docking: bool
     verbose: bool
@@ -198,6 +199,7 @@ def resolve_settings(
         homing_override=bool(_get(user, "homing_override", True)),
         auto_attach=bool(_get(user, "auto_attach", True)),
         wrap_probe_calibrate=bool(_get(user, "wrap_probe_calibrate", True)),
+        show_ui_macros=bool(_get(user, "show_ui_macros", True)),
         dock_before_z_home=bool(_get(user, "dock_before_z_home", True)),
         disable_docking=bool(_get(user, "disable_docking", False)),
         verbose=bool(_get(user, "verbose", True)),

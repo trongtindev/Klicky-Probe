@@ -627,6 +627,12 @@ def probe_status_report(attach_state, locked, session_depth, hold_depth):
 # ---------------------------------------------------------------------------
 
 
+def ui_macro_skip_exists(obj_name):
+    return (
+        "klicky: show_ui_macros skipped '%s' (already defined)" % (obj_name,)
+    )
+
+
 def help_attach_probe():
     return "Attach the Klicky probe from the dock"
 

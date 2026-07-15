@@ -37,6 +37,38 @@ def _config_has(config, name):
         return False
 
 
+# Names listed on Mainsail/Fluidd via empty gcode_macro status objects.
+_UI_MACRO_NAMES = ("ATTACH_PROBE", "DETACH_PROBE")
+
+
+class _UiMacroShim:
+    """Empty get_status so frontends list this as a gcode_macro button.
+
+    Does not handle G-code; the real handlers remain on register_command.
+    Registered only after full config load (klippy:connect) so a real
+    [gcode_macro NAME] section is never short-circuited by load_object.
+    """
+
+    def get_status(self, eventtime):
+        return {}
+
+
+def register_ui_macro_shims(printer, names=_UI_MACRO_NAMES):
+    """Add gcode_macro status shims when no object already exists.
+
+    Returns list of object names that were registered.
+    """
+    registered = []
+    for name in names:
+        obj_name = "gcode_macro %s" % (name,)
+        if printer.lookup_object(obj_name, None) is not None:
+            logging.warning("%s", msg.ui_macro_skip_exists(obj_name))
+            continue
+        printer.add_object(obj_name, _UiMacroShim())
+        registered.append(obj_name)
+    return registered
+
+
 class KlickyProbe:
     def __init__(self, config):
         self.printer = config.get_printer()
@@ -132,6 +164,7 @@ class KlickyProbe:
 
         optional_bools = (
             "homing_override", "auto_attach", "wrap_probe_calibrate",
+            "show_ui_macros",
             "dock_before_z_home", "disable_docking", "verbose", "debug",
             "adaptive_mesh", "z_hop_when_unhomed", "park_after",
             "umbilical", "dock_servo", "safe_dock_travel", "reseat_before_z_home",
@@ -265,6 +298,11 @@ class KlickyProbe:
                     s.disable_docking,
                 )
             )
+
+        # After all config sections are loaded (not in __init__) so a real
+        # [gcode_macro ATTACH_PROBE] is never short-circuited by load_object.
+        if s.show_ui_macros:
+            register_ui_macro_shims(self.printer)
 
     def _handle_ready(self):
         self._toolhead = self.printer.lookup_object("toolhead")

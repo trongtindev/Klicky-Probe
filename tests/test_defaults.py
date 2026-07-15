@@ -31,9 +31,17 @@ def test_derived_bed_and_speeds(minimal_user, printer_voron_like):
     assert s.safe_dock_travel is True
     assert s.reseat_before_z_home is True
     assert s.safe_xy_before_dock is True
+    assert s.show_ui_macros is True
     # bed 0..350 → center 175,175 (toolhead frame, not probe-offset z_home)
     assert s.safe_xy_x == 175.0
     assert s.safe_xy_y == 175.0
+
+
+def test_show_ui_macros_override(minimal_user, printer_voron_like):
+    user = dict(minimal_user)
+    user["show_ui_macros"] = False
+    s = resolve_settings(user, printer_voron_like)
+    assert s.show_ui_macros is False
 
 
 def test_safe_xy_overrides(minimal_user, printer_voron_like):

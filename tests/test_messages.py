@@ -103,6 +103,7 @@ def test_public_callables_return_nonempty_strings():
         "debug_log": ("trace",),
         "info_log": ("probe attached",),
         "log_dock_retry": ("attach", 2),
+        "ui_macro_skip_exists": ("gcode_macro ATTACH_PROBE",),
     }
     for name, obj in inspect.getmembers(msg, inspect.isfunction):
         if name.startswith("_"):
