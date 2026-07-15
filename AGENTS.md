@@ -224,6 +224,40 @@ Adding a new error/warning/info string ⇒ add a function in `messages.py` and c
 
 Never bare `except:` that swallows everything without re-raise or explicit soft-fail path. Narrow `except Exception` only at known Klipper/optional boundaries (see `_config_has`).
 
+### No silent failures — log / raise at the right severity
+
+**Forced:** do not hide failed or degraded paths. Silent `except` on the **primary** outcome, empty fallbacks, and “temp code so the bug goes away” make failures hard to find and fix. Prefer a clear raise or a named log line.
+
+There is **no separate verbose logger**. `h._log` is the info path (`logging.info` always; console only when `settings.verbose`). `h._debug` is a separate path gated by `settings.debug`. Severity labels below are product intent; sinks are the host helpers.
+
+| Situation | Severity / action | Host helper (typical) |
+|-----------|-------------------|------------------------|
+| Expected / correct alternate path (by design: already attached, `SKIP_*`, feature off, intentional policy branch) | **debug** (default) | `h._debug` for design/idempotent policy skips and plan detail. Use `h._log` only when operators should see the alternate path without enabling `debug` |
+| Normal progress (attach done, stage start, …) | **info** | `h._log` via `msg.…()` |
+| **try / recover fallback** — attempt failed or optional path unavailable; continue with degraded or alternate behavior | **warning** | `logging.warning` with what failed and what you do instead. Soft hooks: `_run_gcode_template(name, soft=True)` (`msg.hook_failed` + warning + continue). New soft recoveries follow that pattern — do not invent a second soft-fail API |
+| Invalid state / cannot continue safely | **error** — **raise** | `gcode.error` / `config_error` / `ValueError` via `msg.…()` |
+
+**Rules:**
+
+1. **No silent error on the primary path.** Catching a real failure and continuing without a log or re-raise is wrong unless the path is proven impossible to care about *and* documented (rare). Default is: log or raise.
+2. **Correct-by-design fallback → debug (not warning).** If the alternate path is *supposed* to happen (policy branch, idempotent skip, optional feature disabled), do not warn. Prefer `h._debug`; promote to `h._log` only when operators should see it with `verbose` alone.
+3. **try-style / recover fallback → warning.** If you `try` something and fall back because it failed or is missing (optional object, soft hook, best-effort query), log **warning** with enough context (what failed, what you do instead). Soft hooks stay soft-fail via `_run_gcode_template(..., soft=True)` — do not upgrade to hard abort without an explicit product decision.
+4. **No blind fallback.** Do not invent defaults, swallow the primary `Exception` with no log, return magic `None`/`0`/`False`, or “just continue” to make a test or printer path pass when the real condition is unknown. Fix the root cause or raise a clear error.
+5. **No temporary paper-over.** Do not land workaround code whose only job is to hide a bug or avoid a hard path without: a **warning** log, a short comment why, and a real fix path. Prefer failing loudly over masking.
+6. **User-facing strings stay in `messages.py`.** New **warning**, **info**, and operator-facing `_log` bodies go through `msg.…()`. Short `_debug`-only lines may stay inline unless reused or asserted in tests.
+
+**Allowed narrow `except` (not silent primary failure):**
+
+- After a higher-severity log/raise already recorded the real outcome (e.g. secondary `gcode.respond_info` inside `_log` / `_debug` / soft-hook console emit).
+- Documented optional / Klipper-API shape probes (e.g. `_config_has`) — same rule as the **Errors** section above.
+
+Anti-patterns (reject):
+
+- Bare `except:` or `except Exception: pass` on the **primary** failure path (no prior log/raise of the real outcome)
+- `except Exception: return default` with no log of the primary failure
+- Catch-all that “keeps printing” while attach/dock/homing state is wrong
+- Duplicating a second code path that papers over a planner bug instead of fixing the planner
+
 ### G-code / Klipper integration habits
 
 - Strip Klicky params before calling stock handlers (`strip_klicky_params` / extras).
@@ -255,6 +289,7 @@ Never bare `except:` that swallows everything without re-raise or explicit soft-
 - [ ] Reused existing helpers/modules — no parallel clone; no new god-method
 - [ ] No new magic numbers/strings at call sites — named consts in **`constants.py`** (messages in **`messages.py`**)
 - [ ] New user strings live in `messages.py` (`%` format)
+- [ ] No silent failures: design fallbacks = `_debug` (or `_log` if operators need it); try/recover = warning; hard failures = raise (see **No silent failures**)
 - [ ] Relative imports in plugin; `klicky_probe.*` in tests
 - [ ] `from __future__ import annotations` + module docstring on new plugin modules
 - [ ] Naming matches table above
