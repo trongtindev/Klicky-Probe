@@ -1,6 +1,6 @@
 import pytest
 
-from klicky_probe import errors as E
+from klicky_probe import messages as msg
 from klicky_probe.defaults import (
     PrinterSnapshot,
     resolve_settings,
@@ -93,7 +93,7 @@ def test_homing_conflict_safe_z_home(minimal_user, printer_voron_like):
     s = resolve_settings(minimal_user, printer_voron_like)
     p = PrinterSnapshot(has_safe_z_home=True)
     err = validate_homing_conflicts(s, p)
-    assert err == E.safe_z_home_conflict()
+    assert err == msg.safe_z_home_conflict()
     assert "safe_z_home" in err
 
 

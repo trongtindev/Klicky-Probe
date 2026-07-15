@@ -5,7 +5,7 @@ from __future__ import annotations
 from .adaptive_mesh import merge_mesh_params
 from .dock_policy import DockIntent, parse_dock_intent, strip_klicky_params
 from .homing_plan import HomingRequest
-from . import errors as E
+from . import messages as msg
 
 
 class CommandWrappers:
@@ -50,7 +50,7 @@ class CommandWrappers:
 
         probe.start_probe_session = start_probe_session
         lifecycle.clear_require_fresh_oneshot()
-        h._log("auto_attach: hooked probe.start_probe_session")
+        h._log(msg.log_auto_attach_hooked())
 
     def wrap_leveling_commands(self) -> None:
         """QGL and SCREWS — generic begin/original/end (no Z_TILT special case)."""
@@ -163,7 +163,7 @@ class CommandWrappers:
             if "xyz" not in th.get_status(h.reactor.monotonic()).get(
                 "homed_axes", ""
             ):
-                raise gcmd.error(E.home_xyz_before_probe_op())
+                raise gcmd.error(msg.home_xyz_before_probe_op())
             h._check_over_bed()
             # Paper test: default leave attached unless DOCK=1.
             if not intent.force_dock and not intent.leave_attached:
@@ -178,7 +178,7 @@ class CommandWrappers:
             finally:
                 if not s.disable_docking:
                     h.lifecycle.exit_probe_work(intent)
-            gcmd.respond_info(E.probe_calibrate_leave_attached())
+            gcmd.respond_info(msg.probe_calibrate_leave_attached())
 
             h._status_led("READY")
 
@@ -197,7 +197,7 @@ class CommandWrappers:
             if "xyz" not in th.get_status(h.reactor.monotonic()).get(
                 "homed_axes", ""
             ):
-                raise gcmd.error(E.home_xyz_before_probe_op())
+                raise gcmd.error(msg.home_xyz_before_probe_op())
             h._check_over_bed()
             h.lifecycle.enter_probe_work(intent, restore=True)
             try:

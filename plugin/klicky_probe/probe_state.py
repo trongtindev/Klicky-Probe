@@ -91,14 +91,14 @@ class ProbeState:
         return DetachAction.DETACH
 
     def verify_after_attach(self, probe_triggered: bool) -> Optional[str]:
-        """Return short code if attach failed (map via errors.verify_failed)."""
+        """Return short code if attach failed (map via messages.verify_failed)."""
         self.set_from_query(probe_triggered)
         if self.attach_state != ProbeAttachState.ATTACHED:
             return "attach_failed"
         return None
 
     def verify_after_detach(self, probe_triggered: bool) -> Optional[str]:
-        """Return short code if detach/dock failed (map via errors.verify_failed)."""
+        """Return short code if detach/dock failed (map via messages.verify_failed)."""
         self.set_from_query(probe_triggered)
         if self.attach_state != ProbeAttachState.DOCKED:
             return "dock_failed"

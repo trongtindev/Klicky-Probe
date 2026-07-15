@@ -78,9 +78,9 @@ def entry_xy(geo: DockGeometry, mode: str) -> Tuple[float, float]:
         return attach_entry_xy(geo)
     if mode == "detach":
         return detach_entry_xy(geo)
-    from . import errors as E
+    from . import messages as msg  # local import keeps geometry free of package cycles
 
-    raise ValueError(E.geometry_mode_invalid(mode))
+    raise ValueError(msg.geometry_mode_invalid(mode))
 
 
 def travel_to_entry_waypoints(

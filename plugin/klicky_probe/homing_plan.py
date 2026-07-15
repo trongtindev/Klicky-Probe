@@ -83,7 +83,7 @@ def plan_homing(
 
     reseat_before_z_home:
       When True and virtual Z, require_fresh_attach so a false "attached"
-      (e.g. open wire) is caught by a dock+attach cycle before Z home (#231).
+      (msg.g. open wire) is caught by a dock+attach cycle before Z home (#231).
     """
     home_x, home_y, home_z = request.home_x, request.home_y, request.home_z
     force_full = False

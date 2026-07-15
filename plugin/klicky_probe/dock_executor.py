@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Callable, Optional
 
-from . import errors as E
+from . import messages as msg
 from .geometry import (
     SPEED_ATTACH,
     SPEED_DETACH,
@@ -182,7 +182,7 @@ class DockExecutor:
     def run_dock_motion(self, mode: str) -> None:
         """Full attach or detach sequence: clearance, umbilical, travel, body."""
         if mode not in ("attach", "detach"):
-            raise ValueError(E.geometry_mode_invalid(mode))
+            raise ValueError(msg.geometry_mode_invalid(mode))
         s = self._h.settings
         geo = self.geometry()
         th = self._h._toolhead
@@ -229,8 +229,8 @@ class DockExecutor:
                 if err is None:
                     break
                 if attempt < s.dock_retries:
-                    self._h._log("%s retry %d" % (mode, attempt + 1))
+                    self._h._log(msg.log_dock_retry(mode, attempt + 1))
             if err:
-                raise self._h.gcode.error(E.verify_failed(err))
+                raise self._h.gcode.error(msg.verify_failed(err))
         finally:
             self.end_dock_limits()

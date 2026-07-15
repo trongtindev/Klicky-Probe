@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from . import errors as E
+from . import messages as msg
 from .dock_policy import DockIntent, apply_dock_intent_to_state
 from .probe_session import should_detach_on_session_end
 from .probe_state import (
@@ -58,7 +58,7 @@ class ProbeLifecycle:
             "attach plan → %s (triggered=%s)" % (action.value, triggered)
         )
         if action == AttachAction.ERROR_NOT_HOMED_XY:
-            raise h.gcode.error(E.home_xy_before_attach())
+            raise h.gcode.error(msg.home_xy_before_attach())
         if action in (
             AttachAction.SKIP_DISABLED,
             AttachAction.SKIP_LOCKED,
@@ -69,7 +69,7 @@ class ProbeLifecycle:
 
         was_locked = h.state.locked
         if action == AttachAction.RESEAT:
-            h._log("reseat: detach then attach (require_fresh)")
+            h._log(msg.log_reseat())
             h.state.unlock()
             try:
                 h.dock.dock_with_retries(
@@ -95,7 +95,7 @@ class ProbeLifecycle:
             if action == AttachAction.RESEAT and was_locked:
                 h.state.lock()
 
-        h._log("probe attached")
+        h._log(msg.log_probe_attached())
         h._status_led("READY")
         if restore:
             th.manual_move(
@@ -117,7 +117,7 @@ class ProbeLifecycle:
             "detach plan → %s (triggered=%s)" % (action.value, triggered)
         )
         if action == DetachAction.ERROR_NOT_HOMED_XY:
-            raise h.gcode.error(E.home_xy_before_detach())
+            raise h.gcode.error(msg.home_xy_before_detach())
         if action in (
             DetachAction.SKIP_DISABLED,
             DetachAction.SKIP_LOCKED,
@@ -134,7 +134,7 @@ class ProbeLifecycle:
             h.state.verify_after_detach,
             h._query_probe_triggered,
         )
-        h._log("probe docked")
+        h._log(msg.log_probe_docked())
         h._status_led("READY")
         if restore:
             th.manual_move(
@@ -203,16 +203,16 @@ class ProbeLifecycle:
         h = self._h
         force = bool(gcmd.get_int("FORCE", 0))
         if not h._xy_homed():
-            raise gcmd.error(E.home_xy_before_ensure())
+            raise gcmd.error(msg.home_xy_before_ensure())
         triggered = h._query_probe_triggered()
         h.state.set_from_query(triggered)
         if h.state.attach_state == ProbeAttachState.DOCKED:
-            gcmd.respond_info(E.probe_already_docked())
+            gcmd.respond_info(msg.probe_already_docked())
             return
         if h.state.locked and not force:
-            raise gcmd.error(E.probe_locked_ensure())
+            raise gcmd.error(msg.probe_locked_ensure())
         if force and h.state.locked:
             h.state.unlock()
-            h._log("ENSURE_PROBE_DOCKED FORCE=1: unlocked")
+            h._log(msg.log_ensure_force_unlocked())
         self.detach_probe()
-        gcmd.respond_info(E.probe_docked_ensure())
+        gcmd.respond_info(msg.probe_docked_ensure())

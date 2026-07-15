@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-from . import errors as E
+from . import messages as msg
 
 
 @dataclass
@@ -140,7 +140,7 @@ def resolve_settings(
     """
     missing = [k for k in REQUIRED_USER_KEYS if k not in user]
     if missing:
-        raise ValueError(E.missing_required(missing))
+        raise ValueError(msg.missing_required(missing))
 
     z_home_x_d, z_home_y_d = derive_z_home_xy(printer)
     clearance_d = derive_clearance_z(printer)
@@ -149,7 +149,7 @@ def resolve_settings(
 
     home_first = str(_get(user, "home_first", "auto")).lower()
     if home_first not in ("auto", "x", "y"):
-        raise ValueError(E.home_first_invalid(home_first))
+        raise ValueError(msg.home_first_invalid(home_first))
 
     dock_servo = bool(_get(user, "dock_servo", False))
     servo_name = _get(user, "servo_name", None)
@@ -157,9 +157,9 @@ def resolve_settings(
     servo_retract = _get(user, "servo_retract_angle", None)
     if dock_servo:
         if not servo_name:
-            raise ValueError(E.dock_servo_needs_name())
+            raise ValueError(msg.dock_servo_needs_name())
         if servo_deploy is None or servo_retract is None:
-            raise ValueError(E.dock_servo_needs_angles())
+            raise ValueError(msg.dock_servo_needs_angles())
 
     # Cap derived travel speed; full override still allowed via travel_speed.
     DEFAULT_TRAVEL_SPEED_CAP = 200.0
@@ -239,7 +239,7 @@ def validate_homing_conflicts(
     if not settings.homing_override:
         return None
     if printer.has_safe_z_home:
-        return E.safe_z_home_conflict()
+        return msg.safe_z_home_conflict()
     if printer.has_homing_override:
-        return E.homing_override_section_conflict()
+        return msg.homing_override_section_conflict()
     return None

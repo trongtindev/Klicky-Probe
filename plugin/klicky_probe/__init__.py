@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from . import errors as E
+from . import messages as msg
 from .command_wrappers import CommandWrappers
 from .defaults import (
     PrinterSnapshot,
@@ -24,6 +24,9 @@ from .klipper_version import MIN_KLIPPER_VERSION, check_min_klipper_version
 from .probe_lifecycle import ProbeLifecycle
 from .probe_session import SessionCounters
 from .probe_state import ProbeState
+
+# Plugin identity (shown at printer start)
+KLICKY_PROBE_VERSION = "1.0.0"
 
 
 def _config_has(config, name):
@@ -52,6 +55,7 @@ class KlickyProbe:
         self._session = SessionCounters()
         self._gcode_templates = {}
         self._skew_frame_logged = False
+        self._ready_features = []  # feature labels installed at ready
 
         self.dock = DockExecutor(self)
         self.lifecycle = ProbeLifecycle(self)
@@ -75,27 +79,29 @@ class KlickyProbe:
         self.printer.register_event_handler("klippy:connect", self._handle_connect)
         self.printer.register_event_handler("klippy:ready", self._handle_ready)
 
+        logging.info("%s", msg.log_loading(KLICKY_PROBE_VERSION))
+
         self.gcode.register_command(
-            "ATTACH_PROBE", self.cmd_ATTACH_PROBE, desc=self.cmd_ATTACH_PROBE_help
+            "ATTACH_PROBE", self.cmd_ATTACH_PROBE, desc=msg.help_attach_probe()
         )
         self.gcode.register_command(
-            "DETACH_PROBE", self.cmd_DETACH_PROBE, desc=self.cmd_DETACH_PROBE_help
+            "DETACH_PROBE", self.cmd_DETACH_PROBE, desc=msg.help_detach_probe()
         )
         self.gcode.register_command(
-            "LOCK_PROBE", self.cmd_LOCK_PROBE, desc=self.cmd_LOCK_PROBE_help
+            "LOCK_PROBE", self.cmd_LOCK_PROBE, desc=msg.help_lock_probe()
         )
         self.gcode.register_command(
-            "UNLOCK_PROBE", self.cmd_UNLOCK_PROBE, desc=self.cmd_UNLOCK_PROBE_help
+            "UNLOCK_PROBE", self.cmd_UNLOCK_PROBE, desc=msg.help_unlock_probe()
         )
         self.gcode.register_command(
             "GET_PROBE_STATUS",
             self.cmd_GET_PROBE_STATUS,
-            desc=self.cmd_GET_PROBE_STATUS_help,
+            desc=msg.help_get_probe_status(),
         )
         self.gcode.register_command(
             "ENSURE_PROBE_DOCKED",
             self.cmd_ENSURE_PROBE_DOCKED,
-            desc=self.cmd_ENSURE_PROBE_DOCKED_help,
+            desc=msg.help_ensure_probe_docked(),
         )
 
     def _parse_user_config(self, config):
@@ -176,18 +182,18 @@ class KlickyProbe:
         ver_reason = check_min_klipper_version(ver)
         if ver_reason == "too_old":
             raise self.printer.config_error(
-                E.klipper_version_too_old(found=ver, required=MIN_KLIPPER_VERSION)
+                msg.klipper_version_too_old(found=ver, required=MIN_KLIPPER_VERSION)
             )
         if ver_reason == "unparseable":
             raise self.printer.config_error(
-                E.klipper_version_unparseable(
+                msg.klipper_version_unparseable(
                     found=ver, required=MIN_KLIPPER_VERSION
                 )
             )
 
         probe = self.printer.lookup_object("probe", None)
         if probe is None:
-            raise self.printer.config_error(E.probe_section_required())
+            raise self.printer.config_error(msg.probe_section_required())
         self._probe = probe
 
         snap = self._build_printer_snapshot()
@@ -201,22 +207,57 @@ class KlickyProbe:
             raise self.printer.config_error(err)
 
         if self.settings.adaptive_mesh and not snap.has_bed_mesh:
-            raise self.printer.config_error(E.adaptive_needs_bed_mesh())
+            raise self.printer.config_error(msg.adaptive_needs_bed_mesh())
         if self.settings.adaptive_mesh and not snap.has_exclude_object:
-            raise self.printer.config_error(E.adaptive_needs_exclude_object())
+            raise self.printer.config_error(msg.adaptive_needs_exclude_object())
         if self.settings.auto_attach and not hasattr(probe, "start_probe_session"):
-            raise self.printer.config_error(E.session_api_required())
+            raise self.printer.config_error(msg.session_api_required())
 
-        if self.settings.debug or self.settings.verbose:
+        # Always log resolved geometry to klippy.log at connect
+        s = self.settings
+        logging.info(
+            "%s",
+            msg.log_config_ok(
+                KLICKY_PROBE_VERSION,
+                ver,
+                s.dock_x,
+                s.dock_y,
+                s.dock_z,
+                s.approach_x,
+                s.approach_y,
+                s.approach_z,
+                s.detach_x,
+                s.detach_y,
+                s.detach_z,
+                s.clearance_z,
+                s.travel_speed,
+                s.bed_min_x,
+                s.bed_max_x,
+                s.bed_min_y,
+                s.bed_max_y,
+                s.z_home_x,
+                s.z_home_y,
+                s.auto_attach,
+                s.homing_override,
+                s.adaptive_mesh,
+            ),
+        )
+        if s.debug or s.verbose:
             self._log(
-                "resolved: dock=(%.3f,%.3f,%s) clearance_z=%.2f travel=%.1f "
-                "bed_max=(%.1f,%.1f) z_home=(%.1f,%.1f) adaptive_mesh=%s"
-                % (
-                    self.settings.dock_x, self.settings.dock_y, self.settings.dock_z,
-                    self.settings.clearance_z, self.settings.travel_speed,
-                    self.settings.bed_max_x, self.settings.bed_max_y,
-                    self.settings.z_home_x, self.settings.z_home_y,
-                    self.settings.adaptive_mesh,
+                msg.log_resolved_detail(
+                    s.attach_speed,
+                    s.detach_speed,
+                    s.z_speed,
+                    s.dock_before_z_home,
+                    s.reseat_before_z_home,
+                    s.safe_dock_travel,
+                    s.home_first,
+                    s.dock_retries,
+                    s.wrap_probe_calibrate,
+                    s.park_after,
+                    s.umbilical,
+                    s.dock_servo,
+                    s.disable_docking,
                 )
             )
 
@@ -226,24 +267,77 @@ class KlickyProbe:
         if s is None:
             return
 
+        features = []
+
         if s.homing_override:
             self._orig_g28 = self.gcode.register_command("G28", None)
             self.gcode.register_command("G28", self.cmd_G28)
+            features.append(msg.feature_g28_override())
 
         # auto_attach is the single gate for all automatic attach/dock wraps
         # (session hooks, mesh, leveling, accuracy). wrap_probe_calibrate is
         # independent (paper-test ergonomics).
         if s.auto_attach:
             self.wrappers.install_probe_session_hooks()
+            features.append(msg.feature_probe_session_hooks())
             self.wrappers.wrap_leveling_commands()
+            features.append(msg.feature_leveling_wraps())
             if self.printer.lookup_object("bed_mesh", None) is not None:
                 self.wrappers.wrap_bed_mesh_calibrate()
+                features.append(msg.feature_bed_mesh_calibrate())
             self.wrappers.wrap_probe_accuracy()
+            features.append(msg.feature_probe_accuracy())
+        else:
+            features.append(msg.feature_manual_attach_only())
 
         if s.wrap_probe_calibrate:
             self.wrappers.wrap_probe_calibrate()
+            features.append(msg.feature_probe_calibrate())
 
+        if s.adaptive_mesh:
+            features.append(msg.feature_adaptive_mesh())
+        if s.dock_servo:
+            features.append(msg.feature_dock_servo(s.servo_name))
+        if s.disable_docking:
+            features.append(msg.feature_disable_docking())
+
+        self._ready_features = features
         self._maybe_log_skew_frame()
+        self._announce_ready()
+
+    def _announce_ready(self):
+        """Always log + console-report init summary when printer is ready."""
+        s = self.settings
+        if s is None:
+            return
+
+        lines = msg.ready_announce_lines(
+            KLICKY_PROBE_VERSION,
+            s.dock_x,
+            s.dock_y,
+            s.dock_z,
+            s.approach_x,
+            s.approach_y,
+            s.approach_z,
+            s.detach_x,
+            s.detach_y,
+            s.detach_z,
+            s.clearance_z,
+            s.travel_speed,
+            s.z_home_x,
+            s.z_home_y,
+            s.bed_min_x,
+            s.bed_max_x,
+            s.bed_min_y,
+            s.bed_max_y,
+            self._ready_features,
+        )
+        for line in lines:
+            logging.info("%s", msg.log_line_for_ready(line))
+            try:
+                self.gcode.respond_info(line)
+            except Exception:
+                pass
 
     def _maybe_log_skew_frame(self):
         """Document toolhead-frame dock policy when skew is active (#287)."""
@@ -260,25 +354,21 @@ class KlickyProbe:
         if not name:
             return
         self._skew_frame_logged = True
-        self._log(
-            "skew profile '%s' active; dock/approach coords use toolhead "
-            "(machine) frame — toolhead.manual_move bypasses gcode skew"
-            % name
-        )
+        self._log(msg.skew_frame_active(name))
 
-    def _log(self, msg):
-        logging.info("klicky_probe: %s", msg)
+    def _log(self, text):
+        logging.info("%s", msg.info_log(text))
         if self.settings and self.settings.verbose:
             try:
-                self.gcode.respond_info("klicky: %s" % msg)
+                self.gcode.respond_info(msg.verbose_console(text))
             except Exception:
                 pass
 
-    def _debug(self, msg):
+    def _debug(self, text):
         if self.settings and self.settings.debug:
-            logging.info("klicky_probe debug: %s", msg)
+            logging.info("%s", msg.debug_log(text))
             try:
-                self.gcode.respond_info("klicky debug: %s" % msg)
+                self.gcode.respond_info(msg.debug_console(text))
             except Exception:
                 pass
 
@@ -312,7 +402,7 @@ class KlickyProbe:
             pass
         if probe is not None and hasattr(probe, "last_query"):
             return bool(probe.last_query)
-        raise self.gcode.error(E.probe_query_unavailable())
+        raise self.gcode.error(msg.probe_query_unavailable())
 
     def _status_led(self, name):
         try:
@@ -331,7 +421,7 @@ class KlickyProbe:
             or pos[1] < s.bed_min_y - margin
         ):
             raise self.gcode.error(
-                E.outside_bed(s.bed_min_x, s.bed_max_x, s.bed_min_y, s.bed_max_y)
+                msg.outside_bed(s.bed_min_x, s.bed_max_x, s.bed_min_y, s.bed_max_y)
             )
 
     # --- public attach/detach (used by cmds and wrappers) ---
@@ -342,48 +432,34 @@ class KlickyProbe:
     def detach_probe(self, restore=False, force=False):
         self.lifecycle.detach_probe(restore=restore, force=force)
 
-    cmd_ATTACH_PROBE_help = "Attach the Klicky probe from the dock"
-
     def cmd_ATTACH_PROBE(self, gcmd):
         self.attach_probe(restore=bool(gcmd.get_int("RESTORE", 0)))
-
-    cmd_DETACH_PROBE_help = "Detach/dock the Klicky probe"
 
     def cmd_DETACH_PROBE(self, gcmd):
         self.detach_probe(restore=bool(gcmd.get_int("RESTORE", 0)))
 
-    cmd_LOCK_PROBE_help = "Lock probe so DETACH_PROBE is ignored until unlock"
-
     def cmd_LOCK_PROBE(self, gcmd):
         self.state.lock()
-        self._log("probe locked")
-
-    cmd_UNLOCK_PROBE_help = "Unlock probe attach state"
+        self._log(msg.log_probe_locked())
 
     def cmd_UNLOCK_PROBE(self, gcmd):
         self.state.unlock()
-        self._log("probe unlocked")
-
-    cmd_GET_PROBE_STATUS_help = "Report Klicky probe attach/lock state"
+        self._log(msg.log_probe_unlocked())
 
     def cmd_GET_PROBE_STATUS(self, gcmd):
         try:
             triggered = self._query_probe_triggered()
             self.state.set_from_query(triggered)
         except Exception:
-            gcmd.respond_info(E.probe_query_stale_warning())
+            gcmd.respond_info(msg.probe_query_stale_warning())
         gcmd.respond_info(
-            E.probe_status_report(
+            msg.probe_status_report(
                 self.state.attach_state.value,
                 self.state.locked,
                 self._session.session_depth,
                 self._session.hold_depth,
             )
         )
-
-    cmd_ENSURE_PROBE_DOCKED_help = (
-        "Query probe and dock if attached (print-start / recovery; #230)"
-    )
 
     def cmd_ENSURE_PROBE_DOCKED(self, gcmd):
         self.lifecycle.ensure_probe_docked(gcmd)

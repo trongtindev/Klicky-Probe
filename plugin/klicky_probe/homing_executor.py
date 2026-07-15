@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from . import errors as E
+from . import messages as msg
 from .homing_plan import HomingRequest, plan_homing
 
 
@@ -114,7 +114,7 @@ class HomingExecutor:
     def call_orig_g28(self, axis_letter: str) -> None:
         h = self._h
         if h._orig_g28 is None:
-            raise h.gcode.error(E.orig_g28_unavailable())
+            raise h.gcode.error(msg.orig_g28_unavailable())
         fo = h.gcode.create_gcode_command("G28", "G28", {axis_letter: "0"})
         h._orig_g28(fo)
 
@@ -123,7 +123,7 @@ class HomingExecutor:
         s = h.settings
         th = h._toolhead
         if not h._xy_homed():
-            raise h.gcode.error(E.home_xy_before_z())
+            raise h.gcode.error(msg.home_xy_before_z())
         th.manual_move(
             [s.z_home_x, s.z_home_y, th.get_position()[2]], s.travel_speed
         )
