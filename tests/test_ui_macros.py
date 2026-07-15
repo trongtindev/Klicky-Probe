@@ -27,12 +27,13 @@ class FakePrinter:
         self.added.append(name)
 
 
-def test_register_adds_both_names():
+def test_register_adds_all_names():
     p = FakePrinter()
     registered = register_ui_macro_shims(p)
     assert registered == [
         "gcode_macro ATTACH_PROBE",
         "gcode_macro DETACH_PROBE",
+        "gcode_macro PROBE_CALIBRATE",
     ]
     assert p.added == registered
     for name in _UI_MACRO_NAMES:
@@ -45,15 +46,22 @@ def test_register_skips_existing_without_raise():
     existing_name = "gcode_macro ATTACH_PROBE"
     p = FakePrinter(existing={existing_name: object()})
     registered = register_ui_macro_shims(p)
-    assert registered == ["gcode_macro DETACH_PROBE"]
+    assert registered == [
+        "gcode_macro DETACH_PROBE",
+        "gcode_macro PROBE_CALIBRATE",
+    ]
     assert existing_name not in p.added
-    assert p.added == ["gcode_macro DETACH_PROBE"]
+    assert p.added == registered
     # Pre-existing object left alone
     assert not isinstance(p.objects[existing_name], _UiMacroShim)
 
 
-def test_ui_macro_names_are_attach_detach_only():
-    assert _UI_MACRO_NAMES == ("ATTACH_PROBE", "DETACH_PROBE")
+def test_ui_macro_names_include_probe_calibrate():
+    assert _UI_MACRO_NAMES == (
+        "ATTACH_PROBE",
+        "DETACH_PROBE",
+        "PROBE_CALIBRATE",
+    )
 
 
 def test_skip_message_mentions_object():
