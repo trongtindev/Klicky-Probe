@@ -32,10 +32,11 @@ If both are set: ``DOCK=1`` wins (force dock). ``DOCK=0`` + ``PROBE_LOCK=1``
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Iterable, Mapping, Optional, Union
 
 
-# Params consumed by klicky_probe wrappers — strip before calling stock handlers.
+# Dock leave/lock params on any overridden command — strip before stock handlers.
+# Command-specific keys (e.g. PROBE_ACCURACY MOVE/X/Y) pass via strip extra=.
 KLICKY_GCODE_PARAMS = frozenset({"PROBE_LOCK", "DOCK"})
 
 
@@ -107,15 +108,18 @@ def parse_dock_intent(params: Optional[Mapping[str, Any]]) -> DockIntent:
     return DockIntent()
 
 
-def strip_klicky_params(params: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
-    """Drop Klicky-only keys so stock Klipper handlers never see them."""
+def strip_klicky_params(
+    params: Optional[Mapping[str, Any]],
+    extra: Union[Iterable[str], frozenset, set, tuple] = (),
+) -> Dict[str, Any]:
+    """Drop Klicky-only keys so stock Klipper handlers never see them.
+
+    ``extra``: command-specific keys to strip (e.g. PROBE_ACCURACY MOVE/X/Y).
+    """
     if not params:
         return {}
-    return {
-        k: v
-        for k, v in params.items()
-        if str(k).upper() not in KLICKY_GCODE_PARAMS
-    }
+    drop = KLICKY_GCODE_PARAMS | {str(k).upper() for k in extra}
+    return {k: v for k, v in params.items() if str(k).upper() not in drop}
 
 
 def apply_dock_intent_to_state(

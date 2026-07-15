@@ -6,6 +6,7 @@ from klicky_probe.dock_policy import (
     strip_klicky_params,
 )
 from klicky_probe.homing_plan import HomingRequest, plan_homing
+from klicky_probe.probe_accuracy import PROBE_ACCURACY_STAGING_PARAMS
 
 
 def test_parse_bool_token():
@@ -88,14 +89,52 @@ def test_apply_dock_intent_to_state():
     assert apply_dock_intent_to_state(DockIntent(), locked=False) == (False, True)
 
 
-def test_strip_klicky_params():
+def test_strip_klicky_params_dock_only_by_default():
+    """Default strip is dock leave/lock only — not accuracy staging keys."""
     out = strip_klicky_params(
-        {"ADAPTIVE": "1", "PROBE_LOCK": "1", "DOCK": "0", "PROFILE": "default"}
+        {
+            "ADAPTIVE": "1",
+            "PROBE_LOCK": "1",
+            "DOCK": "0",
+            "PROFILE": "default",
+            "MOVE": "0",
+            "X": "100",
+            "Y": "120",
+            "SAMPLES": "10",
+            "METHOD": "automatic",
+        }
     )
     assert "PROBE_LOCK" not in {k.upper() for k in out}
     assert "DOCK" not in {k.upper() for k in out}
+    # Mesh / accuracy-specific keys must survive global strip
+    assert out["MOVE"] == "0"
+    assert out["X"] == "100"
+    assert out["Y"] == "120"
     assert out["ADAPTIVE"] == "1"
     assert out["PROFILE"] == "default"
+    assert out["SAMPLES"] == "10"
+    assert out["METHOD"] == "automatic"
+
+
+def test_strip_klicky_params_with_accuracy_extra():
+    out = strip_klicky_params(
+        {
+            "PROBE_LOCK": "1",
+            "MOVE": "0",
+            "X": "100",
+            "Y": "120",
+            "SAMPLES": "10",
+            "PROBE_SPEED": "5",
+        },
+        PROBE_ACCURACY_STAGING_PARAMS,
+    )
+    upper = {k.upper() for k in out}
+    assert "PROBE_LOCK" not in upper
+    assert "MOVE" not in upper
+    assert "X" not in upper
+    assert "Y" not in upper
+    assert out["SAMPLES"] == "10"
+    assert out["PROBE_SPEED"] == "5"
 
 
 def test_g28_dock_zero_leave_attached():

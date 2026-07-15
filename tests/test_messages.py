@@ -12,6 +12,7 @@ def test_public_callables_return_nonempty_strings():
         "klipper_version_too_old": ("v0.12.0", MIN_KLIPPER_VERSION),
         "klipper_version_unparseable": ("?", MIN_KLIPPER_VERSION),
         "outside_bed": (0.0, 350.0, 0.0, 350.0),
+        "log_probe_accuracy_stage": (175.0, 150.0),
         "verify_failed": ("attach_failed",),
         "geometry_mode_invalid": ("travel",),
         "probe_operation_failed_code": ("attach_failed",),

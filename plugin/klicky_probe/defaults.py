@@ -81,6 +81,10 @@ class KlickySettings:
     safe_xy_before_dock: bool  # pre-stage XY before dock (detach; probe mounted)
     safe_xy_x: float  # default bed center
     safe_xy_y: float
+    # PROBE_ACCURACY staging (independent of z_home_* overrides; same derive formula)
+    probe_accuracy_move: bool
+    probe_accuracy_x: float
+    probe_accuracy_y: float
 
     # Optional behaviors
     park_after: bool
@@ -227,6 +231,10 @@ def resolve_settings(
         safe_xy_before_dock=bool(_get(user, "safe_xy_before_dock", True)),
         safe_xy_x=float(_get(user, "safe_xy_x", bed_cx)),
         safe_xy_y=float(_get(user, "safe_xy_y", bed_cy)),
+        # Same formula as z_home default; not bound to resolved z_home_* overrides.
+        probe_accuracy_move=bool(_get(user, "probe_accuracy_move", True)),
+        probe_accuracy_x=float(_get(user, "probe_accuracy_x", z_home_x_d)),
+        probe_accuracy_y=float(_get(user, "probe_accuracy_y", z_home_y_d)),
         park_after=bool(_get(user, "park_after", False)),
         park_x=_get(user, "park_x", None),
         park_y=_get(user, "park_y", None),

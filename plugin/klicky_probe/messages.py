@@ -520,6 +520,17 @@ def home_xyz_before_probe_op():
     )
 
 
+def probe_accuracy_xy_incomplete():
+    return (
+        "klicky: PROBE_ACCURACY requires both X and Y (toolhead coordinates), "
+        "or omit both to use probe_accuracy_x/y (or derived bed center)."
+    )
+
+
+def log_probe_accuracy_stage(x: float, y: float) -> str:
+    return "klicky: PROBE_ACCURACY stage → (%.3f, %.3f)" % (x, y)
+
+
 def orig_g28_unavailable():
     return (
         "klicky: original G28 handler is not available. "

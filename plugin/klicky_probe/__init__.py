@@ -156,6 +156,7 @@ class KlickyProbe:
             "park_x", "park_y", "park_z",
             "umbilical_x", "umbilical_y",
             "safe_xy_x", "safe_xy_y",
+            "probe_accuracy_x", "probe_accuracy_y",
             "servo_deploy_angle", "servo_retract_angle", "servo_delay_ms",
         )
         for name in optional_floats:
@@ -169,6 +170,7 @@ class KlickyProbe:
             "adaptive_mesh", "z_hop_when_unhomed", "park_after",
             "umbilical", "dock_servo", "safe_dock_travel", "reseat_before_z_home",
             "safe_xy_before_dock",
+            "probe_accuracy_move",
         )
         for name in optional_bools:
             if _config_has(config, name):
@@ -453,15 +455,20 @@ class KlickyProbe:
         except Exception:
             pass
 
-    def _check_over_bed(self):
+    def _check_over_bed(self, xy=None):
+        """Raise if XY is far outside bed. ``xy`` is None → current toolhead."""
         s = self.settings
-        pos = self._toolhead.get_position()
+        if xy is None:
+            pos = self._toolhead.get_position()
+            px, py = pos[0], pos[1]
+        else:
+            px, py = xy
         margin = 50.0
         if (
-            pos[0] > s.bed_max_x + margin
-            or pos[1] > s.bed_max_y + margin
-            or pos[0] < s.bed_min_x - margin
-            or pos[1] < s.bed_min_y - margin
+            px > s.bed_max_x + margin
+            or py > s.bed_max_y + margin
+            or px < s.bed_min_x - margin
+            or py < s.bed_min_y - margin
         ):
             raise self.gcode.error(
                 msg.outside_bed(s.bed_min_x, s.bed_max_x, s.bed_min_y, s.bed_max_y)

@@ -52,7 +52,18 @@ Shared params on **`G28`**, **`BED_MESH_CALIBRATE`**, **`QUAD_GANTRY_LEVEL`**, *
 | `DOCK=0` | Leave attached **without** lock (next finishing op may dock) |
 | `DOCK=1` | Force unlock + dock at end (**wins** over `PROBE_LOCK`) |
 
-`PROBE_LOCK` / `DOCK` are stripped before stock handlers run.
+`PROBE_LOCK` / `DOCK` (and accuracy-only keys below) are stripped before stock handlers run.
+
+**`PROBE_ACCURACY` only** (when `auto_attach` wrap is installed):
+
+| Param | Effect |
+|-------|--------|
+| *(default)* | Stage to `probe_accuracy_x/y` (derived bed center − probe offsets if unset), then stock samples |
+| `MOVE=0` | Do **not** stage; stock accuracy at current XY |
+| `MOVE=1` | Force stage even if `probe_accuracy_move: False` |
+| `X=` / `Y=` | One-shot toolhead target (both required); overrides config |
+
+Stock Klipper still probes only at the current XY — the wrap moves first when staging is on.
 
 ---
 
@@ -200,7 +211,7 @@ Full all-axes `G28` clears a previous lock at the start, then applies leave/lock
 |---------|----------|
 | `BED_MESH_CALIBRATE` | When `auto_attach`: adaptive policy + attach/dock; honors `PROBE_LOCK`/`DOCK` |
 | `PROBE_CALIBRATE` | When `wrap_probe_calibrate`: attach; leave for paper test unless `DOCK=1` |
-| `PROBE_ACCURACY` | When `auto_attach`: attach/run/dock by default; honors params |
+| `PROBE_ACCURACY` | When `auto_attach`: attach → optional stage XY (`probe_accuracy_move` / `MOVE` / `X`/`Y`) → stock samples → dock; honors dock params |
 | `QUAD_GANTRY_LEVEL` / `Z_TILT_ADJUST` / `SCREWS_TILT_CALCULATE` | When `auto_attach`: attach/dock around op; `Z_TILT` rehomes Z without mid-dock |
 
 Bare **`PROBE`** is not renamed; with `auto_attach` it still attach/docks via the probe **session** API (one session per sample).

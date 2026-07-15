@@ -35,6 +35,10 @@ def test_derived_bed_and_speeds(minimal_user, printer_voron_like):
     # bed 0..350 → center 175,175 (toolhead frame, not probe-offset z_home)
     assert s.safe_xy_x == 175.0
     assert s.safe_xy_y == 175.0
+    # accuracy default = same formula as z_home default, move on
+    assert s.probe_accuracy_move is True
+    assert s.probe_accuracy_x == 175.0
+    assert s.probe_accuracy_y == 150.0
 
 
 def test_show_ui_macros_override(minimal_user, printer_voron_like):
@@ -42,6 +46,28 @@ def test_show_ui_macros_override(minimal_user, printer_voron_like):
     user["show_ui_macros"] = False
     s = resolve_settings(user, printer_voron_like)
     assert s.show_ui_macros is False
+
+
+def test_probe_accuracy_xy_independent_of_z_home(minimal_user, printer_voron_like):
+    user = dict(minimal_user)
+    user["z_home_x"] = 5.0
+    user["z_home_y"] = 6.0
+    s = resolve_settings(user, printer_voron_like)
+    assert s.z_home_x == 5.0
+    assert s.z_home_y == 6.0
+    assert s.probe_accuracy_x == 175.0
+    assert s.probe_accuracy_y == 150.0
+
+
+def test_probe_accuracy_overrides(minimal_user, printer_voron_like):
+    user = dict(minimal_user)
+    user["probe_accuracy_move"] = False
+    user["probe_accuracy_x"] = 100.0
+    user["probe_accuracy_y"] = 110.0
+    s = resolve_settings(user, printer_voron_like)
+    assert s.probe_accuracy_move is False
+    assert s.probe_accuracy_x == 100.0
+    assert s.probe_accuracy_y == 110.0
 
 
 def test_safe_xy_overrides(minimal_user, printer_voron_like):
@@ -90,6 +116,9 @@ def test_user_override_wins(minimal_user, printer_voron_like):
     assert s.travel_speed == 100.0
     assert s.z_home_x == 10.0
     assert s.z_home_y == 20.0
+    # z_home override must not pull accuracy target (still derived center)
+    assert s.probe_accuracy_x == 175.0
+    assert s.probe_accuracy_y == 150.0
     assert s.adaptive_mesh is True
     assert s.adaptive_margin == 8.0
     assert s.clearance_z == 30.0

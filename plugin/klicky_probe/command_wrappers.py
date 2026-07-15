@@ -5,6 +5,11 @@ from __future__ import annotations
 from .adaptive_mesh import merge_mesh_params
 from .dock_policy import DockIntent, parse_dock_intent, strip_klicky_params
 from .homing_plan import HomingRequest
+from .probe_accuracy import (
+    PROBE_ACCURACY_STAGING_PARAMS,
+    resolve_probe_accuracy_move,
+    resolve_probe_accuracy_xy,
+)
 from . import messages as msg
 
 
@@ -206,16 +211,46 @@ class CommandWrappers:
         h._wrapped["PROBE_ACCURACY"] = prev
 
         def handler(gcmd):
+            s = h.settings
+            params = dict(gcmd.get_command_parameters())
             intent = self.dock_intent_from_gcmd(gcmd)
+            do_move = resolve_probe_accuracy_move(
+                params, config_move=s.probe_accuracy_move
+            )
             th = h._toolhead
             if "xyz" not in th.get_status(h.reactor.monotonic()).get(
                 "homed_axes", ""
             ):
                 raise gcmd.error(msg.home_xyz_before_probe_op())
-            h._check_over_bed()
+            tx = ty = None
+            if do_move:
+                try:
+                    tx, ty = resolve_probe_accuracy_xy(
+                        params,
+                        default_x=s.probe_accuracy_x,
+                        default_y=s.probe_accuracy_y,
+                    )
+                except ValueError as e:
+                    raise gcmd.error(str(e))
+                h._check_over_bed(xy=(tx, ty))
+            else:
+                h._check_over_bed()
             h.lifecycle.enter_probe_work(intent, restore=True)
             try:
-                prev(gcmd)
+                if do_move:
+                    h.dock.ensure_clearance()
+                    h._log(msg.log_probe_accuracy_stage(tx, ty))
+                    pos = th.get_position()
+                    th.manual_move([tx, ty, pos[2]], s.travel_speed)
+                stock_params = strip_klicky_params(
+                    params, PROBE_ACCURACY_STAGING_PARAMS
+                )
+                fo = h.gcode.create_gcode_command(
+                    "PROBE_ACCURACY",
+                    "PROBE_ACCURACY",
+                    {str(k): str(v) for k, v in stock_params.items()},
+                )
+                prev(fo)
             finally:
                 h.lifecycle.exit_probe_work(intent, restore=True)
 

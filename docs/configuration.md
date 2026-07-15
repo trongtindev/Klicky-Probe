@@ -68,6 +68,8 @@ Requires `[bed_mesh]`. When `adaptive_mesh: True`, **`[exclude_object]` is requi
 | `bed_min_x` / `bed_min_y` | `stepper_x/y.position_min` |
 | `bed_max_x` / `bed_max_y` | `stepper_x/y.position_max` |
 | `z_home_x` / `z_home_y` | bed center − probe x/y_offset (toolhead XY for Z home **after** attach; Klipper probes at current XY) |
+| `probe_accuracy_move` | `True` — when the `PROBE_ACCURACY` wrap runs (`auto_attach`), move to a target toolhead XY before stock samples. `False` = stock “probe here” (still attaches/docks). Override per call with `MOVE=0` / `MOVE=1`. |
+| `probe_accuracy_x` / `probe_accuracy_y` | same **formula** as default `z_home_*` (bed center − probe offsets), but **independent** of `z_home_*` overrides. Set only if accuracy should use a different point than derived center. Runtime: `PROBE_ACCURACY X=… Y=…`. |
 | `endstop_backoff_x/y` | `10` |
 | `home_first` | `auto` (`auto` \| `x` \| `y`) |
 | `dock_retries` | `0` |
