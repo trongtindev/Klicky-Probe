@@ -9,9 +9,9 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "klicky-probe"
+name = "klicky-probe-plugin"
 dynamic = ["version"]
-description = "Klipper Python plugin for the Klicky magnetic probe"
+description = "Klicky Probe Plugin — Klipper Python extra for Klicky magnetic probes"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "GPL-3.0-or-later" }

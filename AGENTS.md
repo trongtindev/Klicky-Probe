@@ -1,4 +1,4 @@
-# Agent instructions — Klicky-Probe
+# Agent instructions — Klicky Probe Plugin
 
 Klipper Python plugin for the Klicky magnetic probe. Hardware/STLs live under `files/` (and a separate hardware repo); **software work is under `plugin/`, `tests/`, `docs/`, `config/`**.
 
@@ -14,6 +14,7 @@ Klipper Python plugin for the Klicky magnetic probe. Hardware/STLs live under `f
 | Comment/uncomment template | `config/sample-klicky.cfg` |
 | G-codes, params, flows F1–F7 | `docs/gcodes.md` |
 | Install / Moonraker | `docs/install.md`, `plugin/install.sh`, `plugin/moonraker.snippet.conf` |
+| Legacy macro → plugin migration | `docs/migration.md` |
 | Overview + minimal sketch | `README.md` |
 | Mechanical lint (Ruff) + dev deps | `pyproject.toml` (`[tool.ruff]`, `[project.optional-dependencies] dev`) |
 
@@ -39,12 +40,14 @@ Do **not** invent config keys that the parser does not accept. Prefer existing h
 | New/changed G-code or runtime param | `docs/gcodes.md` (+ `configuration.md` if option-related) |
 | Install / Moonraker / symlink behavior | `docs/install.md` (+ README install blurb if user-visible) |
 | Flow / attach-dock policy | `docs/gcodes.md` + any feature-gate wording in `configuration.md` / sample |
+| Legacy macro migration / variable map | `docs/migration.md` only (do not restate long migration essays in install/config/gcodes) |
 
 ### Sample vs full docs (do not drift roles)
 
 - **`config/sample-klicky.cfg`**: short comment/uncomment template only. Group by **feature sections**. One-line notes; no long policy essays or F2 recipes. Link to docs.
 - **`docs/configuration.md`**: full defaults, when-to-use, policy tables. Section order should match the sample banners.
 - **`docs/gcodes.md`**: commands and flows — not a second option catalog.
+- **`docs/migration.md`**: legacy macro suite → plugin only; checklists and variable map — not a second option catalog or F1–F7 rewrite.
 - **`README.md`**: keep the minimal sketch **aligned** with sample geometry and active feature gates; do not invent a different “default” story (e.g. `adaptive_mesh` default is `False`).
 
 ### Consistency rules
@@ -68,7 +71,7 @@ Do **not** invent config keys that the parser does not accept. Prefer existing h
 plugin/klicky_probe/   # Klipper extra
 plugin/install.sh      # install / uninstall
 config/sample-klicky.cfg
-docs/                  # install, configuration, gcodes
+docs/                  # install, migration, configuration, gcodes
 tests/                 # pure-logic unit tests (no full Klipper)
 pyproject.toml         # package meta, dev deps (.[dev]), Ruff config
 ```

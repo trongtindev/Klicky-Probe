@@ -1,8 +1,8 @@
-# Klicky Probe
+# Klicky Probe Plugin
 
-Magnetic microswitch probe for CoreXY and similar printers — **hardware** in [Klicky-Probe-Files](https://github.com/trongtindev/Klicky-Probe-Files) plus a **Klipper Python plugin** for attach/dock, homing, leveling, and adaptive bed mesh.
+Klipper **Python plugin** for Klicky / KlickyNG / Unklicky magnetic probes (attach/dock, homing, leveling, adaptive bed mesh). Hardware STLs and printer guides live in [Klicky-Probe-Files](https://github.com/trongtindev/Klicky-Probe-Files).
 
-## Software (current)
+## Software
 
 The supported integration is the **`[klicky_probe]`** Klipper extra under [`plugin/`](plugin/).
 
@@ -51,8 +51,8 @@ Details, flows F1–F7, and **supported vs unsupported scope**: **[docs/gcodes.m
 ### Install
 
 ```bash
-git clone https://github.com/trongtindev/Klicky-Probe.git
-cd Klicky-Probe
+git clone https://github.com/trongtindev/klicky-probe-plugin.git
+cd klicky-probe-plugin
 ./plugin/install.sh
 ```
 
@@ -60,7 +60,9 @@ Registers the plugin in Klipper extras and adds a Moonraker update-manager secti
 
 Then add `[klicky_probe]` to `printer.cfg` (see [`config/sample-klicky.cfg`](config/sample-klicky.cfg)).
 
-**Docs:** [Install](docs/install.md) · [Configuration](docs/configuration.md) · [G-codes & flows](docs/gcodes.md)
+Coming from legacy macros? **[docs/migration.md](docs/migration.md)**.
+
+**Docs:** [Install](docs/install.md) · [Migration](docs/migration.md) · [Configuration](docs/configuration.md) · [G-codes & flows](docs/gcodes.md)
 
 ### Tests
 
@@ -95,11 +97,11 @@ wrap_probe_calibrate: True
 # adaptive_mesh: True   # optional; needs [bed_mesh] + [exclude_object]
 ```
 
-Remove old Klicky **macro** includes and, if `homing_override: True`, remove `[safe_z_home]` / `[homing_override]`.
+If `homing_override: True`, remove `[safe_z_home]` / `[homing_override]`. Legacy macro cleanup: [docs/migration.md](docs/migration.md).
 
-## Hardware & history
+## Hardware
 
-STLs, CAD, printer guides, photos, and usermods live under [`files/`](https://github.com/trongtindev/Klicky-Probe-Files) (separate repo so this plugin clone stays small).
+STLs, CAD, printer guides, photos, and usermods: [Klicky-Probe-Files](https://github.com/trongtindev/Klicky-Probe-Files) (separate repo so this plugin clone stays small). A `files/` tree may also exist in this clone for local development.
 
 | Path | Contents |
 |------|----------|
@@ -108,8 +110,6 @@ STLs, CAD, printer guides, photos, and usermods live under [`files/`](https://gi
 | [`files/usermods/`](https://github.com/trongtindev/Klicky-Probe-Files/tree/main/usermods) | Community mounts |
 | [`files/photos/`](https://github.com/trongtindev/Klicky-Probe-Files/tree/main/photos) | Shared photos / media |
 | [`files/CAD/`](https://github.com/trongtindev/Klicky-Probe-Files/tree/main/CAD) | STEP / CAD exports |
-
-Software for Klipper is the **plugin** under [`plugin/`](plugin/) (see [docs/](docs/)). Older Klipper **macro** suites are not shipped here and are **not** compatible with this plugin (new option names and G-codes).
 
 ## License
 

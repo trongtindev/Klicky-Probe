@@ -1,5 +1,7 @@
 # G-code commands and probe flows
 
+**Docs:** [Install](install.md) · [Migration](migration.md) · [Configuration](configuration.md)
+
 ## Lifecycle (mental model)
 
 ```text

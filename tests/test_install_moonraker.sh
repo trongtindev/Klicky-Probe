@@ -28,8 +28,8 @@ host: 0.0.0.0
 # klicky_probe - added by plugin/install.sh
 [update_manager klicky_probe]
 type: git_repo
-path: /home/pi/Klicky-Probe
-origin: https://example.com/Klicky-Probe.git
+path: /home/pi/klicky-probe-plugin
+origin: https://example.com/klicky-probe-plugin.git
 primary_branch: main
 install_script: plugin/install.sh
 managed_services: klipper
@@ -56,7 +56,7 @@ pass "filter removes klicky_probe section"
 grep -q '\[update_manager other\]' "${tmp}.out" || fail "other section removed"
 grep -q '\[server\]' "${tmp}.out" || fail "server section removed"
 grep -q 'klicky_probe - added by plugin' "${tmp}.out" && fail "installer comment not removed"
-grep -q 'Klicky-Probe' "${tmp}.out" && fail "klicky body not removed"
+grep -q 'klicky-probe-plugin' "${tmp}.out" && fail "klicky body not removed"
 pass "neighboring sections preserved"
 
 # --- false positive headers must not match ---
@@ -193,8 +193,8 @@ host: 0.0.0.0
 # klicky_probe - added by plugin/install.sh
 [update_manager klicky_probe]
 type: git_repo
-path: /home/pi/Klicky-Probe
-origin: https://example.com/Klicky-Probe.git
+path: /home/pi/klicky-probe-plugin
+origin: https://example.com/klicky-probe-plugin.git
 primary_branch: main
 install_script: plugin/install.sh
 managed_services: klipper

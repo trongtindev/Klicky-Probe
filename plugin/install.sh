@@ -14,7 +14,9 @@
 # moonraker_update_block reads plugin/moonraker.snippet.conf (single key source)
 set -euo pipefail
 
-DEFAULT_ORIGIN="https://github.com/trongtindev/Klicky-Probe.git"
+# Fallback when the clone has no origin remote. Keep in sync with
+# plugin/moonraker.snippet.conf `origin:` (manual-copy default).
+DEFAULT_ORIGIN="https://github.com/trongtindev/klicky-probe-plugin.git"
 SECTION_NAME="klicky_probe"
 INSTALLER_MARKER="# ${SECTION_NAME} - added by plugin/install.sh"
 # Exact section: [update_manager klicky_probe] (one or more spaces)

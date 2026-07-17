@@ -1,4 +1,6 @@
-# Install Klicky Probe plugin
+# Install Klicky Probe Plugin
+
+**Docs:** [Migration](migration.md) · [Configuration](configuration.md) · [G-codes](gcodes.md)
 
 ## Requirements
 
@@ -10,8 +12,8 @@
 
 ```bash
 cd ~
-git clone https://github.com/trongtindev/Klicky-Probe.git
-cd Klicky-Probe
+git clone https://github.com/trongtindev/klicky-probe-plugin.git
+cd klicky-probe-plugin
 ./plugin/install.sh
 ```
 
@@ -53,12 +55,28 @@ Moonraker conf is searched in order: `$MOONRAKER_CONF` / `-m`, then:
 
 If no conf is found, install still succeeds; add the update block manually (below).
 
+## Existing clone (repo rename)
+
+If you already cloned the old GitHub name (`Klicky-Probe`):
+
+```bash
+cd /path/to/your/clone
+git remote set-url origin https://github.com/trongtindev/klicky-probe-plugin.git
+git fetch origin
+# optional: rename the directory to klicky-probe-plugin
+./plugin/install.sh
+```
+
+Re-running the installer refreshes a **managed** Moonraker `[update_manager klicky_probe]` `path` / `origin`. Hand-edited update sections (no installer marker) are left alone — edit them manually if needed.
+
+Legacy macro suite → plugin: [migration.md](migration.md).
+
 ## printer.cfg
 
-1. Remove old macro includes (`klicky-probe.cfg`, etc.).
-2. If using plugin homing, **remove** `[safe_z_home]` and any `[homing_override]`.
+1. Coming from legacy Klicky **macros**? Finish [migration.md](migration.md) first (includes, homing overrides, `activate_gcode`).
+2. Otherwise, if `homing_override: True` (default), **remove** `[safe_z_home]` and any `[homing_override]` (plugin owns G28).
 3. Add a `[klicky_probe]` section (see [configuration.md](configuration.md) and `config/sample-klicky.cfg`).
-4. Keep your stock `[probe]` pin/offsets/samples. **Do not** put dock XY motion in `activate_gcode`.
+4. Keep stock `[probe]` pin/offsets/samples. **Do not** put dock XY motion in `activate_gcode`.
 
 ```ini
 [include sample-klicky.cfg]

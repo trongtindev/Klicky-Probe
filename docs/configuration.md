@@ -1,5 +1,7 @@
 # Configuration reference
 
+**Docs:** [Install](install.md) · [Migration](migration.md) · [G-codes](gcodes.md)
+
 Section name: **`[klicky_probe]`**
 
 Rule: **if you do not set an option, it is derived from existing Klipper config** (printer max velocity/accel, stepper bed size, probe offsets, etc.). Declaring a key overrides the default.
@@ -239,18 +241,6 @@ post_probe_calibrate_gcode:
 # pre_probe_accuracy_gcode: / post_probe_accuracy_gcode: optional
 ```
 
-## Meaning map from old macros (reference only — not compatible)
+## Legacy macros
 
-| Old variable | New option |
-|--------------|------------|
-| `docklocation_*` | `dock_*` |
-| `attachmove_*` | `approach_*` |
-| `dockmove_*` | `detach_*` |
-| `attachmove2_*` | `approach2_*` |
-| `safe_z` | `clearance_z` |
-| `z_endstop_*` | `z_home_*` |
-| `variable_adaptive_mesh` | `adaptive_mesh` |
-
-There is **no** compatibility with `Attach_Probe` macro names or `klicky-variables.cfg`.
-
-See [gcodes.md](gcodes.md) for flows (F1–F7) and override params.
+Variable and command mapping from the old macro suite: **[migration.md](migration.md)**. Flows F1–F7: [gcodes.md](gcodes.md).
